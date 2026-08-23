@@ -1,0 +1,19 @@
+# ---- Python ----
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# ---- R ----
+.Rhistory
+.RData
+.Rproj.user/
+.Ruserdata
+
+# ---- VS Code ----
+.vscode/
+
+# ---- Sistema operativo ----
+Thumbs.db
+desktop.ini
+.DS_Store
