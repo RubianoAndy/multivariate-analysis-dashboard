@@ -1,11 +1,4 @@
 variable,KMO,clasificacion
-horas_operacion,0.9784,Excelente
-potencia_instalada_kw,0.9517,Excelente
-num_equipos,0.9196,Excelente
-area_m2,0.9068,Excelente
-consumo_kwh,0.8167,Muy bueno
-costo_miles_cop,0.8055,Muy bueno
-interrupciones_mes,0.7869,Aceptable
-factor_potencia,0.5855,Malo
-antiguedad_anios,0.5585,Malo
-temperatura_c,0.3973,Inaceptable
+factor_potencia,0.4606,Inaceptable
+antiguedad_anios,0.4588,Inaceptable
+consumo_kwh,0.0719,Inaceptable

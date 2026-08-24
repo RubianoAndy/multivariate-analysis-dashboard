@@ -26,9 +26,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy.cluster.hierarchy import linkage
+from statsmodels.formula.api import ols
 
 from dataset import VARIABLES_NUMERICAS
-from pca_clustering import VARIABLES_LOG, VARIABLES_MODELO, VARIABLE_EXCLUIDA
+from pca_clustering import VARIABLES_LOG, VARIABLES_MODELO
 from estilo import (
     aplicar_estilo_matplotlib,
     AZUL_UNISALLE, TEXTO, TEXTO_SUAVE, BORDE,
@@ -89,12 +90,6 @@ def titulo(fig, texto, subtitulo=None):
 def heatmap_correlacion(df, ruta):
     """Matriz de correlacion anotada, con mascara triangular.
 
-    Se dibuja sobre las diez variables del conjunto porque es la primera
-    evidencia de la seleccion: el bloque de seis con correlaciones sobre 0.90 es
-    lo que justifica quedarse con una sola representante. Las que entran al
-    modelo van marcadas con un asterisco, igual que en el clustermap y en el
-    dashboard.
-
     Se calcula sobre las mismas variables transformadas que alimentan el PCA:
     una correlacion de Pearson sobre variables lognormales mide la relacion
     equivocada, porque Pearson supone linealidad y aqui la relacion es lineal
@@ -104,15 +99,14 @@ def heatmap_correlacion(df, ruta):
     for col in VARIABLES_LOG:
         datos[col] = np.log(datos[col])
     datos.columns = [
-        (f"log {ETIQUETAS_CORTAS[c]}" if c in VARIABLES_LOG else ETIQUETAS_CORTAS[c])
-        + ("  *" if c in VARIABLES_MODELO else "")
+        f"log {ETIQUETAS_CORTAS[c]}" if c in VARIABLES_LOG else ETIQUETAS_CORTAS[c]
         for c in datos.columns
     ]
 
     R = datos.corr()
     mascara = np.triu(np.ones_like(R, dtype=bool), k=1)
 
-    fig, ax = plt.subplots(figsize=(9.5, 7.6))
+    fig, ax = plt.subplots(figsize=(6.6, 5.4))
     sns.heatmap(
         R, mask=mascara, annot=True, fmt=".2f", annot_kws={"size": 8},
         cmap=ESCALA_DIVERGENTE, center=0, vmin=-1, vmax=1,
@@ -125,10 +119,9 @@ def heatmap_correlacion(df, ruta):
 
     top = titulo(
         fig,
-        "Matriz de correlacion entre las variables del cliente",
-        "Dos bloques compactos -las seis de tamano y las tres de estado de la red- y una "
-        "variable suelta, la temperatura, que no se asocia con ninguna. De ahi salen las tres "
-        "del modelo, marcadas con *.",
+        "Matriz de correlacion entre las tres variables del modelo",
+        "El factor de potencia y la antiguedad estan correlacionadas a -0.94: describen la "
+        "misma realidad. Esa redundancia es justo lo que el PCA comprime en una componente.",
     )
     fig.tight_layout(rect=[0, 0, 1, top])
     fig.savefig(ruta)
@@ -189,41 +182,26 @@ def matriz_dispersion(df, ruta):
 def clustermap(df, ruta):
     """Mapa de calor de los datos estandarizados con dendrogramas en los margenes.
 
-    Las **columnas** son las nueve variables candidatas, no las tres que
-    acabaron en el modelo: esta figura es la evidencia de por que sobraban seis.
-    El dendrograma superior las agrupa solo, sin que nadie le diga cuales miden
-    lo mismo, y reproduce los bloques que la Fase 2 uso para seleccionar.
-    Dibujarla ya reducida seria enseñar la conclusion y esconder el argumento.
+    Es la unica figura que muestra el resultado **cliente por cliente** en vez
+    de por promedios: las demas resumen cada grupo en una fila, y aqui se ve que
+    los bloques son homogeneos individuo a individuo y no un efecto de promediar.
 
-    Las **filas**, en cambio, se ordenan por el espacio del modelo -las tres
-    variables seleccionadas-, no por las nueve. Es una decision deliberada: si
-    se agrupan los clientes con las nueve, el dendrograma de filas y la franja
-    de color de la izquierda responden a dos criterios distintos y concuerdan
-    solo a medias (indice Rand ajustado 0.49), de modo que la franja aparece
-    entreverada y la figura sugiere un desacuerdo que no existe. Ordenando las
-    filas por el mismo espacio en el que se agrupo (ARI 0.85) la franja forma
-    bloques limpios y la figura dice lo que tiene que decir: los grupos hallados
-    con tres variables tambien organizan las seis que el modelo nunca vio.
+    Con tres variables el dendrograma de columnas es trivial -tiene tres hojas- y
+    no aporta nada; el valor esta en el de filas, que reordena a los 300 clientes
+    por similitud sin conocer la particion y deberia reproducir los mismos
+    bloques que K-Means marca en la franja de color de la izquierda.
     """
-    candidatas = [v for v in VARIABLES_NUMERICAS if v != VARIABLE_EXCLUIDA]
-    datos = df[candidatas].copy()
-    for col in [c for c in VARIABLES_LOG if c in candidatas]:
+    datos = df[VARIABLES_MODELO].copy()
+    for col in [c for c in VARIABLES_LOG if c in VARIABLES_MODELO]:
         datos[col] = np.log(datos[col])
     datos = (datos - datos.mean()) / datos.std()
-
-    # Enlace de filas calculado aparte, sobre las tres variables del modelo.
-    modelo = df[VARIABLES_MODELO].copy()
-    for col in [c for c in VARIABLES_LOG if c in VARIABLES_MODELO]:
-        modelo[col] = np.log(modelo[col])
-    modelo = (modelo - modelo.mean()) / modelo.std()
-    enlace_filas = linkage(modelo.values, method="ward")
+    enlace_filas = linkage(datos.values, method="ward")
 
     matriz = pd.DataFrame(
         datos.values,
         columns=[
-            (f"log {ETIQUETAS_CORTAS[c]}" if c in VARIABLES_LOG else ETIQUETAS_CORTAS[c])
-            + ("  *" if c in VARIABLES_MODELO else "")
-            for c in candidatas
+            f"log {ETIQUETAS_CORTAS[c]}" if c in VARIABLES_LOG else ETIQUETAS_CORTAS[c]
+            for c in VARIABLES_MODELO
         ],
     )
 
@@ -241,7 +219,7 @@ def clustermap(df, ruta):
         vmax=2.5,
         row_colors=colores_fila.values,
         yticklabels=False,
-        figsize=(9.5, 8.5),
+        figsize=(7.4, 7.2),
         dendrogram_ratio=(0.14, 0.10),
         cbar_pos=POSICION_BARRA_COLOR,
         cbar_kws={"label": "Valor estandarizado (z)"},
@@ -256,10 +234,9 @@ def clustermap(df, ruta):
     top = titulo(
         g.figure,
         "Clustermap: clientes y variables reordenados por similitud",
-        "Columnas: el dendrograma superior agrupa las variables sin ayuda y reproduce los "
-        "bloques que motivaron la seleccion (las marcadas con * entran al modelo). Filas: "
-        "los clientes se ordenan por las tres variables del modelo, y los bloques que forman "
-        "-la franja de color es K-Means- se mantienen en las seis que el modelo nunca vio.",
+        "El dendrograma de la izquierda reordena a los 300 clientes por similitud sin conocer "
+        "la particion, y forma los mismos bloques que K-Means marca en la franja de color: la "
+        "estructura se sostiene cliente a cliente, no solo en los promedios.",
     )
     # clustermap monta sus ejes sobre un gridspec propio, que ignora tight_layout;
     # hay que reducirle el techo a mano para dejar sitio al titulo. La barra de
@@ -285,14 +262,11 @@ def perfil_clusters(df, ruta):
     media = df[VARIABLES_NUMERICAS].mean()
     desv = df[VARIABLES_NUMERICAS].std()
     perfil = (df.groupby("cluster")[VARIABLES_NUMERICAS].mean() - media) / desv
-    perfil.columns = [
-        ETIQUETAS_CORTAS[c] + ("  *" if c in VARIABLES_MODELO else "")
-        for c in perfil.columns
-    ]
+    perfil.columns = [ETIQUETAS_CORTAS[c] for c in perfil.columns]
     tamanos = df["cluster"].value_counts().sort_index()
     perfil.index = [f"C{c}\n(n={tamanos[c]})" for c in perfil.index]
 
-    fig, ax = plt.subplots(figsize=(11, 3.6))
+    fig, ax = plt.subplots(figsize=(7.6, 3.4))
     sns.heatmap(
         perfil, annot=True, fmt="+.2f", annot_kws={"size": 8.5},
         cmap=ESCALA_DIVERGENTE, center=0, vmin=-1.5, vmax=1.5,
@@ -308,9 +282,8 @@ def perfil_clusters(df, ruta):
     top = titulo(
         fig,
         "Perfil de cada cluster en puntuaciones z",
-        "Las marcadas con * son las tres del modelo; el resto no participo en el ajuste y aun "
-        "asi separa a los grupos, lo que muestra que la particion generaliza. La temperatura "
-        "permanece plana: no reproduce la geografia.",
+        "La tabla de interpretacion hecha figura: cada celda dice cuantas desviaciones tipicas "
+        "se aparta el grupo de la media global. De aqui salen los nombres de los segmentos.",
     )
     fig.tight_layout(rect=[0, 0, 1, top])
     fig.savefig(ruta)
@@ -330,15 +303,12 @@ def distribuciones_cluster(df, ruta):
         ("consumo_kwh", "Consumo mensual (kWh, escala log)", True),
         ("factor_potencia", "Factor de potencia", False),
         ("antiguedad_anios", "Antiguedad de la instalacion (anios)", False),
-        # Cuarta variable de control: no entro al modelo, y aun asi separa los
-        # grupos. Es una comprobacion de que la particion no depende de ella.
-        ("interrupciones_mes", "Interrupciones al mes (fuera del modelo)", False),
     ]
     orden = sorted(df["cluster"].unique())
     paleta = [COLOR_CLUSTER[c % len(COLOR_CLUSTER)] for c in orden]
     etiquetas_x = [f"C{c}" for c in orden]
 
-    fig, ejes = plt.subplots(1, 4, figsize=(14, 4.3))
+    fig, ejes = plt.subplots(1, 3, figsize=(10.5, 4.3))
     for ax, (col, titulo_eje, log) in zip(ejes, variables):
         sns.violinplot(
             data=df, x="cluster", y=col, hue="cluster", order=orden,
@@ -358,9 +328,9 @@ def distribuciones_cluster(df, ruta):
 
     top = titulo(
         fig,
-        "Distribucion de las variables clave dentro de cada cluster",
-        "C0 y C3 (red heredada) concentran las interrupciones y la antiguedad; "
-        "C1 y C3 concentran el consumo.",
+        "Distribucion de las tres variables dentro de cada cluster",
+        "El violin muestra la forma completa de la distribucion, no solo los cuartiles: deja "
+        "ver si un grupo es compacto de verdad o si su promedio esconde dos modas.",
     )
     fig.tight_layout(rect=[0, 0, 1, top])
     fig.savefig(ruta)
@@ -368,61 +338,100 @@ def distribuciones_cluster(df, ruta):
 
 
 # -----------------------------------------------------------------------------
-# 6. REGRESION: EL EFECTO CLIMATICO QUE EL CLUSTERING NO CAPTURA
+# 6. REGRESION: LA COLINEALIDAD QUE MOTIVA EL PCA
 # -----------------------------------------------------------------------------
-def regresion_temperatura(df, ruta):
-    """Ajustes de regresion de consumo sobre temperatura, por sector.
+def regresion_colinealidad(df, ruta):
+    """Version grafica de la regresion de la Fase 1, en dos paneles.
 
-    Version grafica de la ANCOVA de la Fase 1. Las tres rectas suben, pero lo
-    hacen poco -unas 0.2 unidades de log a lo largo de veinte grados- frente a
-    una dispersion interna que ronda media unidad y a una separacion entre
-    sectores de cuatro unidades de logaritmo, unas cincuenta veces en kWh. Ese
-    contraste de magnitudes es exactamente lo
-    que impide a la t de Welch declarar significativa la diferencia entre
-    regiones: el efecto existe, pero es pequeno comparado con el ruido que hay
-    que atravesar para verlo sin controlar la escala del cliente.
+    El panel izquierdo ensena el problema: el factor de potencia y la antiguedad
+    caen casi sobre una recta (r = -0.94). Miden lo mismo, y una regresion que
+    los use como predictores separados no tiene forma de repartir el efecto
+    entre ellos.
+
+    El panel derecho ensena la consecuencia: la relacion entre el consumo y el
+    factor de potencia dentro de cada sector, con la pendiente conjunta y su
+    intervalo de confianza. La estimacion queda muy lejos del valor fisico que
+    fija el generador (unos -1.1) por dos motivos que se suman: la colinealidad
+    infla la varianza del coeficiente, y el modelo omite el tamano de la
+    instalacion -que este conjunto no mide- y que empuja el consumo hacia
+    arriba. El resultado es un coeficiente que no se puede interpretar.
+
+    Es la motivacion directa del PCA de la Fase 2, que en vez de pedirle a dos
+    variables colineales que se repartan un efecto las comprime en una sola
+    componente.
     """
     datos = df.assign(log_consumo=np.log(df["consumo_kwh"]))
+    r = datos["factor_potencia"].corr(datos["antiguedad_anios"])
 
-    g = sns.lmplot(
-        data=datos, x="temperatura_c", y="log_consumo", hue="sector",
-        hue_order=ORDEN_SECTOR, palette=COLOR_SECTOR, height=5.2, aspect=1.55,
-        scatter_kws={"s": 26, "alpha": 0.65, "edgecolor": "none"},
-        line_kws={"linewidth": 2},
-        ci=95, legend=False,
-    )
-    ax = g.ax
-    # Ajuste global sin distinguir sector: la recta plana del conjunto.
+    # Las cifras del recuadro se recalculan aqui en vez de escribirse a mano:
+    # si cambian los datos, la anotacion cambia con ellos.
+    modelo = ols(
+        "log_consumo ~ factor_potencia + antiguedad_anios + C(sector)", data=datos
+    ).fit()
+    beta = modelo.params["factor_potencia"]
+    ic = modelo.conf_int().loc["factor_potencia"]
+    r2_entre_predictores = ols(
+        "factor_potencia ~ antiguedad_anios", data=datos
+    ).fit().rsquared
+    vif = 1 / (1 - r2_entre_predictores)
+    # El generador fija consumo proporcional a 0.92 / factor_potencia, de modo
+    # que la pendiente fisica es -1 / factor_potencia medio.
+    pendiente_real = -1 / datos["factor_potencia"].mean()
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11.5, 4.6))
+
+    # --- Panel izquierdo: los dos predictores son la misma variable ----------
+    for sector in ORDEN_SECTOR:
+        m = datos["sector"] == sector
+        ax1.scatter(
+            datos.loc[m, "factor_potencia"], datos.loc[m, "antiguedad_anios"],
+            s=22, alpha=0.65, color=COLOR_SECTOR[sector], edgecolor="none",
+            label=sector,
+        )
     sns.regplot(
-        data=datos, x="temperatura_c", y="log_consumo", scatter=False,
-        color=TEXTO_SUAVE, line_kws={"linewidth": 2.2, "linestyle": "--"},
-        ci=None, ax=ax,
+        data=datos, x="factor_potencia", y="antiguedad_anios", scatter=False,
+        color=TEXTO, line_kws={"linewidth": 2, "linestyle": "--"}, ci=None, ax=ax1,
     )
-    ax.set_xlabel("Temperatura media del municipio (C)")
-    ax.set_ylabel("Consumo mensual, ln(kWh)")
-    # Con fondo: la leyenda cae sobre la nube de puntos y sin recuadro no se lee.
-    ax.legend(
-        handles=[
-            plt.Line2D([], [], color=COLOR_SECTOR[s], linewidth=2.4, label=s)
-            for s in ORDEN_SECTOR
-        ]
-        + [plt.Line2D([], [], color=TEXTO_SUAVE, linewidth=2.2, linestyle="--",
-                      label="Ajuste global (sin distinguir sector)")],
-        fontsize=9, loc="lower right", frameon=True, framealpha=0.94,
-        edgecolor=BORDE, facecolor="white",
+    ax1.set_xlabel("Factor de potencia")
+    ax1.set_ylabel("Antiguedad de la instalacion (anios)")
+    ax1.set_title(f"Los dos predictores: r = {r:.2f}", loc="left", fontsize=11)
+    ax1.legend(title="Sector", fontsize=8.5, title_fontsize=9, loc="upper right",
+               frameon=True, framealpha=0.94, edgecolor=BORDE, facecolor="white")
+
+    # --- Panel derecho: la pendiente que no se puede estimar bien ------------
+    for sector in ORDEN_SECTOR:
+        m = datos["sector"] == sector
+        sns.regplot(
+            data=datos[m], x="factor_potencia", y="log_consumo",
+            scatter_kws={"s": 22, "alpha": 0.6, "edgecolor": "none"},
+            line_kws={"linewidth": 2}, color=COLOR_SECTOR[sector], ci=95, ax=ax2,
+        )
+    ax2.set_xlabel("Factor de potencia")
+    ax2.set_ylabel("Consumo mensual, ln(kWh)")
+    ax2.set_title("El efecto sobre el consumo, por sector", loc="left", fontsize=11)
+    ax2.annotate(
+        "Regresion conjunta:\n"
+        f"  pendiente estimada = {beta:.2f}\n"
+        f"  IC 95 % = [{ic.iloc[0]:.2f}, {ic.iloc[1]:.2f}]\n"
+        f"  valor fisico ~ {pendiente_real:.2f}\n"
+        f"  VIF = {vif:.1f}",
+        xy=(0.03, 0.03), xycoords="axes fraction", fontsize=8.5, color=TEXTO,
+        va="bottom", ha="left", linespacing=1.5,
+        bbox=dict(boxstyle="round,pad=0.4", facecolor="white",
+                  edgecolor=BORDE, alpha=0.94),
     )
 
     top = titulo(
-        g.figure,
-        "Consumo frente a temperatura, dentro de cada sector",
-        "Las cuatro pendientes son positivas, pero suaves: el efecto que la ANCOVA "
-        "cuantifica en +1.06 % por grado queda pequeno frente a la dispersion interna "
-        "de cada sector y minusculo frente a las cuatro unidades de logaritmo -unas "
-        "cincuenta veces- que separan al residencial del industrial.",
+        fig,
+        "Por que hacen falta las componentes principales",
+        f"Factor de potencia y antiguedad describen la misma realidad (r = {r:.2f}), asi que "
+        f"la regresion no puede repartir el efecto entre ambos: el VIF sube a {vif:.1f} y el "
+        f"coeficiente se va a {beta:.1f}, lejos del valor fisico de {pendiente_real:.1f}. El PCA "
+        "resuelve esto comprimiendo las dos variables en una componente.",
     )
-    g.figure.tight_layout(rect=[0, 0, 1, top])
-    g.figure.savefig(ruta)
-    plt.close(g.figure)
+    fig.tight_layout(rect=[0, 0, 1, top])
+    fig.savefig(ruta)
+    plt.close(fig)
 
 
 # -----------------------------------------------------------------------------
@@ -447,8 +456,8 @@ def main():
          "Perfil de clusteres en puntuaciones z"),
         ("05_distribuciones_cluster.png", distribuciones_cluster,
          "Violines de las variables clave por cluster"),
-        ("06_regresion_temperatura.png", regresion_temperatura,
-         "Regresion de consumo sobre temperatura por sector"),
+        ("06_regresion_colinealidad.png", regresion_colinealidad,
+         "Regresion con predictores colineales (motiva el PCA)"),
     ]
 
     for nombre, funcion, descripcion in figuras:

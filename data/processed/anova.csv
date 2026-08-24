@@ -1,2 +1,2 @@
 prueba,variable,factor,gl_efecto,gl_residual,estadistico_F,p_valor,eta_cuadrado,decision_alpha_0.05
-ANOVA de un factor,log(consumo_kwh),sector,2,297,975.3443,2.961510185524411e-131,0.8679,Se rechaza H0
+ANOVA de un factor,log(consumo_kwh),sector,2,297,1086.7092,2.387337431835423e-137,0.8798,Se rechaza H0

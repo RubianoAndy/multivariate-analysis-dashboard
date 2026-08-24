@@ -118,8 +118,7 @@ def biplot_interactivo(df, cargas, varianza, nombres_cluster, ruta):
         },
         custom_data=[
             "id_cliente", "sector", "region", "consumo_kwh",
-            "potencia_instalada_kw", "factor_potencia", "antiguedad_anios",
-            "interrupciones_mes", "silueta",
+            "factor_potencia", "antiguedad_anios", "silueta",
         ],
     )
     # El sector no se codifica con simbolo: multiplicaria la leyenda por tres
@@ -131,12 +130,10 @@ def biplot_interactivo(df, cargas, varianza, nombres_cluster, ruta):
             "<b>%{customdata[0]}</b><br>"
             "%{customdata[1]} | %{customdata[2]}<br>"
             "<br>Consumo: %{customdata[3]:,.0f} kWh/mes"
-            "<br>Potencia: %{customdata[4]:.1f} kW"
-            "<br>Factor de potencia: %{customdata[5]:.3f}"
-            "<br>Antiguedad: %{customdata[6]:.1f} anios"
-            "<br>Interrupciones: %{customdata[7]} al mes"
+            "<br>Factor de potencia: %{customdata[4]:.3f}"
+            "<br>Antiguedad: %{customdata[5]:.1f} anios"
             "<br><br>PC1 = %{x:.2f} | PC2 = %{y:.2f}"
-            "<br>Silueta: %{customdata[8]:.3f}"
+            "<br>Silueta: %{customdata[6]:.3f}"
             "<extra></extra>"
         ),
     )
@@ -224,8 +221,7 @@ def dispersion_3d(df, nombres_cluster, ruta):
             nombres_cluster[c]: color_cluster(c) for c in sorted(df["cluster"].unique())
         },
         opacity=0.82,
-        custom_data=["id_cliente", "sector", "region", "consumo_kwh",
-                     "potencia_instalada_kw", "interrupciones_mes"],
+        custom_data=["id_cliente", "sector", "region", "consumo_kwh"],
     )
     fig.update_traces(
         marker=dict(size=5.5, line=dict(width=0.4, color="white")),
@@ -235,9 +231,6 @@ def dispersion_3d(df, nombres_cluster, ruta):
             "<br>Consumo: %{customdata[3]:,.0f} kWh/mes"
             "<br>Factor de potencia: %{y:.3f}"
             "<br>Antiguedad: %{z:.1f} anios"
-            "<br><i>Fuera del modelo:</i>"
-            "<br>Potencia instalada: %{customdata[4]:.1f} kW"
-            "<br>Interrupciones: %{customdata[5]} al mes"
             "<extra></extra>"
         )
     )

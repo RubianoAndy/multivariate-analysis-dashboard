@@ -7,13 +7,19 @@ estadistica, no con intuicion:
    Si no lo fueran, el clustering posterior no tendria con que contrastarse.
    Se prueba con normalidad (Shapiro-Wilk), homocedasticidad (Levene), t de
    Welch, ANOVA de un factor + post-hoc de Tukey, chi-cuadrado de independencia
-   y una MANOVA que evalua el efecto del sector sobre las 10 variables a la vez.
+   y una MANOVA que evalua el efecto del sector sobre las tres variables a la vez.
 
-2. **.Tiene sentido aplicar PCA a esta matriz?** Un PCA sobre variables
+2. **.Por que hace falta reducir dimensiones?** Una regresion del consumo sobre
+   el factor de potencia y la antiguedad -dos variables correlacionadas a
+   -0.94- muestra el problema en vivo: factores de inflacion de la varianza por
+   encima de 8 y coeficientes que se disparan. Es la motivacion concreta del
+   PCA de la Fase 2.
+
+3. **.Tiene sentido aplicar PCA a esta matriz?** Un PCA sobre variables
    incorreladas no reduce nada. Se comprueba con la prueba de esfericidad de
-   Bartlett (H0: la matriz de correlacion es la identidad) y con el indice
-   KMO de adecuacion muestral, calculado a partir de la matriz de
-   correlaciones parciales (anti-imagen).
+   Bartlett (H0: la matriz de correlacion es la identidad) y con el determinante
+   de la matriz de correlacion. El indice KMO se reporta tambien, con la
+   advertencia de que con solo tres variables deja de ser interpretable.
 
 Todos los resultados se guardan en ``data/processed`` como CSV para que el
 informe y el dashboard citen exactamente los mismos numeros.
@@ -40,6 +46,20 @@ PROCESSED_DIR = PROJECT_ROOT / "data" / "processed"
 PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
 
 ALPHA = 0.05
+
+# El consumo es multiplicativo y fuertemente asimetrico; el PCA de la Fase 2 lo
+# analiza en logaritmo. Las pruebas que anticipan ese PCA -correlaciones,
+# Bartlett y KMO- tienen que mirar la misma matriz, o estarian diagnosticando
+# unos datos y modelando otros.
+VARIABLES_LOG = ["consumo_kwh"]
+
+
+def matriz_del_modelo(df):
+    """Devuelve las variables numericas con la misma transformacion que usa el PCA."""
+    datos = df[VARIABLES_NUMERICAS].copy()
+    for col in [c for c in VARIABLES_LOG if c in datos.columns]:
+        datos[col] = np.log(datos[col])
+    return datos
 
 
 def decision(p, alpha=ALPHA):
@@ -121,8 +141,10 @@ def prueba_t(df):
       variacion que domina el consumo (el tamano de la instalacion).
 
     Se usa Welch (``equal_var=False``) en ambos casos porque las varianzas
-    regionales no son comparables. El resultado -no significativo en los dos
-    contrastes- es el que motiva la ANCOVA de la funcion siguiente.
+    regionales no son comparables. El resultado es negativo en los dos
+    contrastes: el consumo esta dominado por el tamano de la instalacion -que
+    este conjunto no mide- y ese ruido entierra cualquier diferencia regional.
+    Conviene reportarlo tal cual: una prueba que no rechaza tambien informa.
     """
 
     def contraste(a, b, etiqueta, variable, nombre_a, nombre_b, transformar=None):
@@ -172,49 +194,61 @@ def prueba_t(df):
     )
 
 
-def ancova_temperatura(df):
-    """ANCOVA: efecto de la temperatura una vez controlada la escala del cliente.
+def regresion_colinealidad(df):
+    """Regresion del consumo sobre el estado de la red, y su problema.
 
-    La t de Welch no detecta el efecto climatico porque el consumo esta
-    dominado por el tamano de la instalacion: un residencial del Caribe y un
-    industrial andino difieren en dos ordenes de magnitud, y ese ruido entierra
-    un efecto del orden del 15 %. La escala actua como variable de confusion.
+    Es la prueba que motiva toda la Fase 2. El factor de potencia y la
+    antiguedad describen la misma realidad -una instalacion vieja esta mal
+    compensada- y su correlacion llega a -0.94. Meter ambos como predictores en
+    una regresion no es ilegal, pero deja el modelo sin capacidad de repartir el
+    efecto entre ellos: los errores estandar se inflan, los coeficientes se
+    vuelven inestables y uno de los dos acaba absorbiendo el efecto del otro.
 
-    El modelo ``log(consumo) ~ log(potencia) + log(horas) + temperatura + sector``
-    aisla el efecto parcial de la temperatura manteniendo constante el resto.
-    Es el argumento central de la actividad: en datos multivariantes, un
-    contraste bivariante puede ocultar una relacion que si existe.
+    El factor de inflacion de la varianza (VIF) cuantifica ese dano: es
+    ``1 / (1 - R2_j)``, donde ``R2_j`` es lo que explican del predictor j los
+    demas predictores. Un VIF de 1 significa independencia; por encima de 5 se
+    considera colinealidad problematica.
+
+    Como los datos son simulados, el efecto verdadero se conoce: el generador
+    fija ``consumo proporcional a 0.92 / factor_potencia``, de modo que la
+    pendiente real ronda -1.1. Comparar la estimacion con ese valor deja ver
+    hasta que punto la colinealidad la desvia. El PCA de la Fase 2 resuelve
+    exactamente este problema: comprime las dos variables en una componente en
+    vez de pedirles que se repartan un efecto que no pueden separar.
     """
-    datos = df.assign(
-        log_consumo=np.log(df["consumo_kwh"]),
-        log_potencia=np.log(df["potencia_instalada_kw"]),
-        log_horas=np.log(df["horas_operacion"]),
-    )
+    datos = df.assign(log_consumo=np.log(df["consumo_kwh"]))
     modelo = ols(
-        "log_consumo ~ log_potencia + log_horas + temperatura_c + factor_potencia + C(sector)",
-        data=datos,
+        "log_consumo ~ factor_potencia + antiguedad_anios + C(sector)", data=datos
     ).fit()
+
+    # VIF de cada predictor continuo, calculado a mano para no arrastrar otra
+    # dependencia: se regresa cada uno sobre el otro y se usa su R2.
+    vif = {}
+    predictores = ["factor_potencia", "antiguedad_anios"]
+    for j, termino in enumerate(predictores):
+        otro = predictores[1 - j]
+        r2 = ols(f"{termino} ~ {otro}", data=datos).fit().rsquared
+        vif[termino] = 1 / (1 - r2)
 
     filas = []
     for termino in modelo.params.index:
         filas.append(
             {
                 "termino": termino,
-                "coeficiente": round(modelo.params[termino], 5),
-                "error_estandar": round(modelo.bse[termino], 5),
+                "coeficiente": round(modelo.params[termino], 4),
+                "error_estandar": round(modelo.bse[termino], 4),
                 "estadistico_t": round(modelo.tvalues[termino], 4),
                 "p_valor": modelo.pvalues[termino],
-                "ic95_inferior": round(modelo.conf_int().loc[termino, 0], 5),
-                "ic95_superior": round(modelo.conf_int().loc[termino, 1], 5),
+                "ic95_inferior": round(modelo.conf_int().loc[termino, 0], 4),
+                "ic95_superior": round(modelo.conf_int().loc[termino, 1], 4),
+                "VIF": round(vif[termino], 2) if termino in vif else np.nan,
                 "decision_alpha_0.05": decision(modelo.pvalues[termino]),
             }
         )
 
     tabla = pd.DataFrame(filas)
-    # Efecto practico: cuanto sube el consumo por cada grado adicional.
-    beta_temp = modelo.params["temperatura_c"]
     tabla.attrs["R2"] = modelo.rsquared
-    tabla.attrs["efecto_pct_por_grado"] = (np.exp(beta_temp) - 1) * 100
+    tabla.attrs["pendiente_real_aprox"] = -1 / df["factor_potencia"].mean()
     return tabla, modelo
 
 
@@ -303,15 +337,12 @@ def manova(df):
     """MANOVA: efecto del sector sobre el vector completo de variables.
 
     La ANOVA responde variable por variable e infla el error tipo I al
-    repetirse diez veces; la MANOVA contrasta el vector de medias de una sola
-    vez. Se trabaja sobre las variables estandarizadas (log en las de escala)
-    para que ninguna domine por sus unidades.
+    repetirse tres veces; la MANOVA contrasta el vector de medias de una sola
+    vez. Se trabaja sobre las variables estandarizadas (con logaritmo en el
+    consumo) para que ninguna domine por sus unidades.
     """
-    escala = ["consumo_kwh", "costo_miles_cop", "area_m2", "potencia_instalada_kw",
-              "num_equipos", "horas_operacion"]
     datos = df.copy()
-    for col in escala:
-        datos[col] = np.log(datos[col])
+    datos["consumo_kwh"] = np.log(datos["consumo_kwh"])
     datos[VARIABLES_NUMERICAS] = (
         datos[VARIABLES_NUMERICAS] - datos[VARIABLES_NUMERICAS].mean()
     ) / datos[VARIABLES_NUMERICAS].std()
@@ -341,13 +372,18 @@ def manova(df):
 # 4. ADECUACION DE LOS DATOS AL PCA: Bartlett y KMO
 # -----------------------------------------------------------------------------
 def correlaciones(df):
-    """Matriz de correlaciones de Pearson y su version en formato largo con p-valores."""
-    R = df[VARIABLES_NUMERICAS].corr()
+    """Matriz de correlaciones de Pearson y su version en formato largo con p-valores.
+
+    Se calcula sobre la matriz transformada: Pearson mide asociacion lineal, y
+    entre el consumo y el resto la relacion es lineal solo en logaritmos.
+    """
+    datos = matriz_del_modelo(df)
+    R = datos.corr()
 
     filas = []
     for i, a in enumerate(VARIABLES_NUMERICAS):
         for b in VARIABLES_NUMERICAS[i + 1:]:
-            r, p = stats.pearsonr(df[a], df[b])
+            r, p = stats.pearsonr(datos[a], datos[b])
             filas.append(
                 {
                     "variable_1": a,
@@ -404,7 +440,7 @@ def kmo(R):
 
 def adecuacion_pca(df):
     """Reune Bartlett y KMO en una sola tabla interpretable."""
-    R = df[VARIABLES_NUMERICAS].corr()
+    R = matriz_del_modelo(df).corr()
     chi2, gl, p, det = bartlett_esfericidad(R, len(df))
     kmo_global, kmo_var = kmo(R)
 
@@ -449,7 +485,16 @@ def adecuacion_pca(df):
                 "valor": round(kmo_global, 4),
                 "gl": np.nan,
                 "p_valor": np.nan,
-                "interpretacion": etiqueta_kmo(kmo_global),
+                # El KMO compara correlaciones simples con parciales. Con tres
+                # variables cada parcial se calcula controlando por una sola, de
+                # modo que las correlaciones anti-imagen quedan infladas por
+                # construccion y el indice se hunde aunque la matriz sea
+                # perfectamente factorizable. Kaiser lo penso para baterias de
+                # muchos indicadores; aqui no decide nada y manda Bartlett.
+                "interpretacion": (
+                    f"{etiqueta_kmo(kmo_global)} - no concluyente: el indice no es "
+                    f"interpretable con solo {len(VARIABLES_NUMERICAS)} variables"
+                ),
             },
         ]
     )
@@ -480,14 +525,16 @@ def main():
     print("2. t DE WELCH (Caribe vs Andina)")
     print(t_df.to_string(index=False), "\n")
 
-    ancova_df, modelo = ancova_temperatura(df)
-    ancova_df.to_csv(PROCESSED_DIR / "ancova_temperatura.csv", index=False)
-    print("3. ANCOVA (temperatura controlando escala y sector)")
-    print(ancova_df.to_string(index=False))
+    reg_df, modelo = regresion_colinealidad(df)
+    reg_df.to_csv(PROCESSED_DIR / "regresion_colinealidad.csv", index=False)
+    print("3. REGRESION log(consumo) ~ factor de potencia + antiguedad + sector")
+    print(reg_df.to_string(index=False))
     print(
-        f"R2 = {ancova_df.attrs['R2']:.4f} | "
-        f"efecto de la temperatura = "
-        f"{ancova_df.attrs['efecto_pct_por_grado']:+.2f} % de consumo por grado C\n"
+        f"R2 = {reg_df.attrs['R2']:.4f} | "
+        f"pendiente real aproximada sobre el factor de potencia = "
+        f"{reg_df.attrs['pendiente_real_aprox']:.2f}\n"
+        "Los VIF por encima de 8 y el coeficiente disparado son el problema que "
+        "el PCA de la Fase 2 viene a resolver.\n"
     )
 
     anova_df, tukey_df = anova_y_tukey(df)
@@ -522,7 +569,7 @@ def main():
     print(adec.to_string(index=False))
     print(kmo_var.to_string(index=False))
 
-    print("\nOK - Fase 1: 10 tablas escritas en data/processed/")
+    print("\nOK - Fase 1: 9 tablas escritas en data/processed/")
 
 
 if __name__ == "__main__":

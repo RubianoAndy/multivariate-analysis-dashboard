@@ -1,9 +1,9 @@
 prueba,variable,grupo,n,estadistico,p_valor,decision_alpha_0.05
-Shapiro-Wilk,consumo_kwh,Comercial,88,0.8953,3.1462866555372334e-06,Se rechaza H0
-Shapiro-Wilk,log(consumo_kwh),Comercial,88,0.9824,0.2773964037365594,No se rechaza H0
-Shapiro-Wilk,consumo_kwh,Industrial,57,0.8968,0.00014867910585984973,Se rechaza H0
-Shapiro-Wilk,log(consumo_kwh),Industrial,57,0.9914,0.9585277984294642,No se rechaza H0
-Shapiro-Wilk,consumo_kwh,Residencial,155,0.7277,1.2685662185772845e-15,Se rechaza H0
-Shapiro-Wilk,log(consumo_kwh),Residencial,155,0.9876,0.18440545613994114,No se rechaza H0
-Levene (centrado en mediana),consumo_kwh,Residencial | Comercial | Industrial,300,109.891,1.897537602469374e-36,Se rechaza H0
-Levene (centrado en mediana),log(consumo_kwh),Residencial | Comercial | Industrial,300,3.8615,0.022100585158044854,Se rechaza H0
+Shapiro-Wilk,consumo_kwh,Comercial,88,0.9431,0.0007522953436965757,Se rechaza H0
+Shapiro-Wilk,log(consumo_kwh),Comercial,88,0.9863,0.4854230457553671,No se rechaza H0
+Shapiro-Wilk,consumo_kwh,Industrial,57,0.8692,1.841896707594238e-05,Se rechaza H0
+Shapiro-Wilk,log(consumo_kwh),Industrial,57,0.991,0.9489647914548041,No se rechaza H0
+Shapiro-Wilk,consumo_kwh,Residencial,155,0.693,1.3720185391892978e-16,Se rechaza H0
+Shapiro-Wilk,log(consumo_kwh),Residencial,155,0.9854,0.10345905901101476,No se rechaza H0
+Levene (centrado en mediana),consumo_kwh,Residencial | Comercial | Industrial,300,96.9329,3.9479188107675805e-33,Se rechaza H0
+Levene (centrado en mediana),log(consumo_kwh),Residencial | Comercial | Industrial,300,1.5678,0.2102252547654615,No se rechaza H0

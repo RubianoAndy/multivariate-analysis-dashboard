@@ -1,12 +1,11 @@
 metrica,valor
 n_clientes,300
 n_variables_modelo,3
-variable_excluida_por_kmo,temperatura_c
 componentes_retenidas,2
 variables_del_modelo,consumo_kwh | factor_potencia | antiguedad_anios
-varianza_acumulada_pct,98.19
+varianza_acumulada_pct,98.39
 k_optimo,4
-silueta_media,0.4706
-calinski_harabasz,349.35
-davies_bouldin,0.7006
-ari_kmeans_vs_ward,0.8391
+silueta_media,0.4836
+calinski_harabasz,354.96
+davies_bouldin,0.6923
+ari_kmeans_vs_ward,0.8457

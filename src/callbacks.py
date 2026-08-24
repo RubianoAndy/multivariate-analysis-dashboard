@@ -21,7 +21,7 @@ from src.theme import (
 )
 from src.data import (
     analizar, MINIMO_CLIENTES, ETIQUETAS_CORTAS, VARIABLES_LOG,
-    VARIABLES_NUMERICAS, VARIABLES_MODELO, VARIABLE_EXCLUIDA, eje_componente,
+    VARIABLES_NUMERICAS, VARIABLES_MODELO, eje_componente,
 )
 
 GRID = '#F1F3F8'
@@ -69,18 +69,15 @@ def fig_biplot(resultado, criterio):
         datos, x='PC1', y='PC2', color=columna,
         color_discrete_map=mapa, category_orders={columna: orden},
         custom_data=['id_cliente', 'sector', 'region', 'consumo_kwh',
-                     'potencia_instalada_kw', 'factor_potencia',
-                     'antiguedad_anios', 'interrupciones_mes'],
+                     'factor_potencia', 'antiguedad_anios'],
     )
     fig.update_traces(
         marker=dict(size=8, opacity=0.78, line=dict(width=0.5, color='white')),
         hovertemplate=(
             '<b>%{customdata[0]}</b><br>%{customdata[1]} | %{customdata[2]}'
             '<br><br>Consumo: %{customdata[3]:,.0f} kWh/mes'
-            '<br>Potencia: %{customdata[4]:.1f} kW'
-            '<br>Factor de potencia: %{customdata[5]:.3f}'
-            '<br>Antiguedad: %{customdata[6]:.1f} anios'
-            '<br>Interrupciones: %{customdata[7]}'
+            '<br>Factor de potencia: %{customdata[4]:.3f}'
+            '<br>Antiguedad: %{customdata[5]:.1f} anios'
             '<extra></extra>'
         ),
     )
@@ -221,7 +218,7 @@ def fig_perfil(resultado):
     perfil_z = resultado['perfil_z']
     tamanos = resultado['datos']['cluster'].value_counts()
 
-    columnas = [c for c in VARIABLES_NUMERICAS]
+    columnas = list(VARIABLES_NUMERICAS)
     matriz = perfil_z[columnas]
     etiquetas_x = [ETIQUETAS_CORTAS.get(c, c) for c in columnas]
     etiquetas_y = [f'C{c} (n={tamanos.get(c, 0)})' for c in matriz.index]
@@ -328,15 +325,14 @@ def fig_sunburst(resultado):
 
 
 def fig_correlacion(resultado):
-    """Matriz de correlacion de todas las variables, triangular inferior.
+    """Matriz de correlacion de las variables del modelo, triangular inferior.
 
-    Se dibuja sobre las diez variables numericas y no solo sobre las tres del
-    modelo: es la evidencia de por que sobran siete. El bloque de seis
-    correlaciones por encima de 0.90 en la esquina superior izquierda es lo que
-    justifica quedarse con una sola representante.
+    Con tres variables la matriz cabe entera y se lee de un vistazo; el valor
+    que importa es el -0.94 entre factor de potencia y antiguedad, que es la
+    redundancia que el PCA comprime en una sola componente.
     """
     datos = resultado['datos']
-    variables = [v for v in VARIABLES_NUMERICAS if v != VARIABLE_EXCLUIDA]
+    variables = resultado['variables']
 
     matriz = datos[variables].copy()
     for col in [c for c in VARIABLES_LOG if c in matriz.columns]:
@@ -346,8 +342,7 @@ def fig_correlacion(resultado):
     # Se oculta el triangulo superior: es simetrico y solo anade ruido visual.
     z = R.values.astype(float).copy()
     z[np.triu_indices_from(z, k=1)] = np.nan
-    etiquetas = [etiqueta(v) + ('  *' if v in VARIABLES_MODELO else '')
-                 for v in variables]
+    etiquetas = [etiqueta(v) for v in variables]
 
     fig = go.Figure(
         go.Heatmap(
@@ -364,9 +359,8 @@ def fig_correlacion(resultado):
         **{k: v for k, v in BASE_LAYOUT.items() if k != 'margin'},
         margin=dict(l=110, r=20, t=58, b=95),
         title=title_cfg(
-            'Por que el modelo usa solo tres variables',
-            'Seis variables forman un bloque con correlaciones sobre 0.90: miden lo mismo. '
-            'Las marcadas con * son las que entran al modelo',
+            'Correlaciones entre las tres variables',
+            'Factor de potencia y antiguedad describen la misma realidad: r = -0.94',
         ),
     )
     fig.update_xaxes(tickangle=-38, tickfont=dict(size=9.5))
@@ -386,10 +380,8 @@ def tabla_perfiles(resultado):
             'Grupo': resultado['nombres_cluster'][c],
             'Clientes': int(perfil.loc[c, 'n_clientes']),
             'Consumo': round(perfil.loc[c, 'consumo_kwh'], 1),
-            'Potencia': round(perfil.loc[c, 'potencia_instalada_kw'], 1),
             'FactorPotencia': round(perfil.loc[c, 'factor_potencia'], 3),
             'Antiguedad': round(perfil.loc[c, 'antiguedad_anios'], 1),
-            'Interrupciones': round(perfil.loc[c, 'interrupciones_mes'], 2),
             'Silueta': round(float(silueta_grupo.get(c, float('nan'))), 3),
         })
     return filas

@@ -1,4 +1,4 @@
 "componente","autovalor","varianza_explicada_pct","varianza_acumulada_pct","criterio_kaiser","criterio_varianza_acum"
-"PC1",1.9659,65.53,65.53,"Retener","Retener"
-"PC2",0.9799,32.66,98.19,"Descartar","Retener"
-"PC3",0.0542,1.81,100,"Descartar","Descartar"
+"PC1",1.9574,65.25,65.25,"Retener","Retener"
+"PC2",0.9941,33.14,98.39,"Descartar","Retener"
+"PC3",0.0484,1.61,100,"Descartar","Descartar"

@@ -43,13 +43,14 @@ CODIGOS_DIR = BASE_DIR / 'utils' / 'codes' / 'python'
 sys.path.insert(0, str(CODIGOS_DIR))
 from dataset import VARIABLES_NUMERICAS                      # noqa: E402
 from pca_clustering import (                                 # noqa: E402,F401
-    VARIABLES_LOG, VARIABLES_MODELO, VARIABLE_EXCLUIDA,
+    VARIABLES_LOG, VARIABLES_MODELO,
     preparar_matriz, ejecutar_pca, describir, eje_componente, SEED,
 )
 from estilo import ETIQUETAS_CORTAS                          # noqa: E402
 
-# Minimo de clientes para que un PCA tenga sentido: con menos observaciones que
-# variables la matriz de correlacion es singular.
+# Minimo de clientes para que el analisis sea fiable. Muy por encima de las tres
+# variables del modelo: con una muestra pequena la matriz de correlacion es
+# inestable y el clustering se vuelve ruido.
 MINIMO_CLIENTES = 20
 
 
@@ -118,14 +119,8 @@ def nombrar_clusters(perfil_z):
 
     El nombre es solo comunicacion; no interviene en el modelo.
     """
-    tamano = perfil_z[
-        ['consumo_kwh', 'potencia_instalada_kw', 'area_m2', 'horas_operacion']
-    ].mean(axis=1)
-    calidad = (
-        perfil_z['factor_potencia']
-        - perfil_z['interrupciones_mes']
-        - perfil_z['antiguedad_anios']
-    ) / 3
+    tamano = perfil_z['consumo_kwh']
+    calidad = (perfil_z['factor_potencia'] - perfil_z['antiguedad_anios']) / 2
 
     return {
         c: 'C{}: {}, {}'.format(
@@ -186,11 +181,18 @@ def analizar(sectores, regiones, k):
         silhouette_samples(Z, etiquetas) if k > 1 else np.zeros(len(datos))
     )
 
-    # Perfil en puntuaciones z respecto a la media del subconjunto mostrado.
-    media = datos[VARIABLES_NUMERICAS].mean()
-    desv = datos[VARIABLES_NUMERICAS].std().replace(0, np.nan)
+    # Perfil en z respecto al subconjunto mostrado, sobre la matriz transformada
+    # -la misma que usa el PCA-. Con el consumo en escala original la cola
+    # industrial infla la desviacion tipica y aplasta al resto de los grupos.
+    transformada = datos[VARIABLES_NUMERICAS].copy()
+    for col in [c for c in VARIABLES_LOG if c in transformada.columns]:
+        transformada[col] = np.log(transformada[col])
+    transformada['cluster'] = etiquetas
+
+    media = transformada[VARIABLES_NUMERICAS].mean()
+    desv = transformada[VARIABLES_NUMERICAS].std().replace(0, np.nan)
     perfil_z = (
-        (resultado.groupby('cluster')[VARIABLES_NUMERICAS].mean() - media) / desv
+        (transformada.groupby('cluster')[VARIABLES_NUMERICAS].mean() - media) / desv
     ).fillna(0)
     perfil = resultado.groupby('cluster')[VARIABLES_NUMERICAS].mean()
     perfil.insert(0, 'n_clientes', resultado.groupby('cluster').size())

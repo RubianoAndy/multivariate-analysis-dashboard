@@ -6,9 +6,8 @@
 # en Python y rehace el analisis con las herramientas propias de R, para
 # comprobar que los resultados no dependen del lenguaje ni de la libreria.
 #
-#   1. Prepara la matriz igual que en Python: las mismas TRES variables del
-#      modelo (consumo en logaritmo, factor de potencia y antiguedad), elegidas
-#      en la Fase 2 por redundancia y por el indice KMO.
+#   1. Prepara la matriz igual que en Python: las tres variables del conjunto
+#      (consumo en logaritmo, factor de potencia y antiguedad), estandarizadas.
 #   2. PCA con stats::prcomp y comparacion de autovalores contra los de
 #      scikit-learn, leidos de data/processed/pca_varianza.csv.
 #   3. K-Means y jerarquico de Ward con las funciones base, seleccion de k por
@@ -134,9 +133,8 @@ cat(sprintf("Dataset: %d clientes x %d columnas\n\n", nrow(datos), ncol(datos)))
 # Solo el consumo necesita logaritmo; las otras dos ya son de escala acotada.
 variables_log <- c("consumo_kwh")
 
-# Las tres variables del modelo. Las siete restantes se descartaron en la Fase 2:
-# seis por redundancia (correlacion > 0.90 entre ellas) y la temperatura por su
-# indice KMO de 0.456. Ver data/processed/seleccion_variables.csv.
+# Las tres variables numericas del conjunto, una por concepto: cuanto consume el
+# cliente, con que calidad electrica y desde hace cuanto.
 variables_modelo <- c("consumo_kwh", "factor_potencia", "antiguedad_anios")
 
 etiquetas_cortas <- c(
@@ -460,6 +458,8 @@ plano <- data.frame(
   region = datos$region,
   id_cliente = datos$id_cliente,
   consumo_kwh = datos$consumo_kwh,
+  factor_potencia = datos$factor_potencia,
+  antiguedad_anios = datos$antiguedad_anios,
   stringsAsFactors = FALSE
 )
 tamanos <- table(km$cluster)
@@ -491,30 +491,24 @@ g_clusters <- ggplot(plano, aes(PC1, PC2)) +
 guardar(g_clusters, "04_clusters_pca.png", ancho = 9, alto = 6)
 
 # --- Figura 5: perfil de los clusteres ---------------------------------------
-# Medias por cluster en puntuaciones z sobre TODAS las variables numericas, no
-# solo las tres del modelo. Es la comprobacion de que la particion generaliza:
-# los grupos se separan tambien en las siete variables que se descartaron, y la
-# temperatura -la unica sin relacion con el resto- se mantiene plana.
-variables_perfil <- c(
-  "consumo_kwh", "costo_miles_cop", "area_m2", "potencia_instalada_kw",
-  "num_equipos", "horas_operacion", "temperatura_c", "factor_potencia",
-  "antiguedad_anios", "interrupciones_mes"
-)
+# Medias por cluster en puntuaciones z sobre la matriz transformada, la misma
+# que alimenta el PCA. Con el consumo en escala original la cola industrial
+# infla la desviacion tipica y comprime a los demas grupos.
+variables_perfil <- variables_modelo
+transformada <- datos[, variables_perfil]
+transformada[variables_log] <- log(transformada[variables_log])
+
 perfil <- do.call(rbind, lapply(niveles_cluster, function(c) {
-  sub <- datos[km$cluster == c, variables_perfil]
-  medias <- (colMeans(sub) - colMeans(datos[, variables_perfil])) /
-    apply(datos[, variables_perfil], 2, sd)
+  sub <- transformada[km$cluster == c, ]
+  medias <- (colMeans(sub) - colMeans(transformada)) /
+    apply(transformada, 2, sd)
   data.frame(cluster = c, variable = names(medias), z = as.numeric(medias),
              stringsAsFactors = FALSE)
 }))
 
-# Nombres legibles de las diez, marcando con * las tres que entran al modelo.
 nombres_variables <- c(
-  consumo_kwh = "Consumo *", costo_miles_cop = "Costo", area_m2 = "Area",
-  potencia_instalada_kw = "Potencia", num_equipos = "Equipos",
-  horas_operacion = "Horas oper.", temperatura_c = "Temperatura",
-  factor_potencia = "F. potencia *", antiguedad_anios = "Antiguedad *",
-  interrupciones_mes = "Interrupciones"
+  consumo_kwh = "log Consumo", factor_potencia = "F. potencia",
+  antiguedad_anios = "Antiguedad"
 )
 perfil$variable <- factor(nombres_variables[perfil$variable],
                           levels = nombres_variables[variables_perfil])
@@ -534,21 +528,21 @@ g_perfil <- ggplot(perfil, aes(variable, cluster_etiqueta, fill = z)) +
                        name = "z") +
   labs(
     title = "Perfil de cada cluster en puntuaciones z - R",
-    subtitle = paste("Las marcadas con * son las tres del modelo; el resto no participo y aun asi separa a los grupos.",
-                     "La temperatura se mantiene plana: la particion no reproduce la geografia"),
+    subtitle = "Cada celda indica cuantas desviaciones tipicas se aparta el grupo de la media global",
     x = NULL, y = NULL
   ) +
   theme(axis.text.x = element_text(angle = 28, hjust = 1),
         panel.grid = element_blank())
-guardar(g_perfil, "05_perfil_clusters.png", ancho = 11, alto = 4.2)
+guardar(g_perfil, "05_perfil_clusters.png", ancho = 7.6, alto = 4)
 
 # -----------------------------------------------------------------------------
 # 4. FIGURA INTERACTIVA CON PLOTLY
 # -----------------------------------------------------------------------------
 plano$etiqueta <- sprintf(
-  "<b>%s</b><br>%s | %s<br>Consumo: %s kWh/mes<br>PC1 = %.2f | PC2 = %.2f",
+  "<b>%s</b><br>%s | %s<br>Consumo: %s kWh/mes<br>F. potencia: %.3f<br>Antiguedad: %.1f anios<br>PC1 = %.2f | PC2 = %.2f",
   plano$id_cliente, plano$sector, plano$region,
-  format(round(plano$consumo_kwh), big.mark = ","), plano$PC1, plano$PC2
+  format(round(plano$consumo_kwh), big.mark = ","),
+  plano$factor_potencia, plano$antiguedad_anios, plano$PC1, plano$PC2
 )
 
 g_interactivo <- plot_ly(

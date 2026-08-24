@@ -157,11 +157,11 @@ sidebar = html.Div(
                         html.Span('El modelo usa '),
                         html.Span(f'{len(VARIABLES_MODELO)} variables',
                                   style={'color': SIDEBAR_TEXT, 'fontWeight': '600'}),
-                        html.Span(' de las diez del conjunto: consumo, factor '
-                                  'de potencia y antiguedad. Seis se descartaron '
-                                  'por redundancia (correlacion sobre 0.90 entre '
-                                  'ellas) y la temperatura por su indice KMO de '
-                                  '0.456, bajo el umbral de 0.50.'),
+                        html.Span(': consumo, factor de potencia y '
+                                  'antiguedad. Las dos ultimas estan '
+                                  'correlacionadas a -0.94 -describen la misma '
+                                  'realidad-, y comprimir esa redundancia en una '
+                                  'componente es el trabajo del PCA.'),
                     ],
                     style={'color': SIDEBAR_MUTED, 'fontSize': '10.5px',
                            'lineHeight': '1.5'},
@@ -243,10 +243,8 @@ tabla_perfiles = dash_table.DataTable(
         {'name': 'Grupo', 'id': 'Grupo'},
         {'name': 'Clientes', 'id': 'Clientes', 'type': 'numeric'},
         {'name': 'Consumo medio (kWh)', 'id': 'Consumo', 'type': 'numeric'},
-        {'name': 'Potencia (kW)', 'id': 'Potencia', 'type': 'numeric'},
         {'name': 'F. potencia', 'id': 'FactorPotencia', 'type': 'numeric'},
         {'name': 'Antiguedad (anios)', 'id': 'Antiguedad', 'type': 'numeric'},
-        {'name': 'Interrup./mes', 'id': 'Interrupciones', 'type': 'numeric'},
         {'name': 'Silueta', 'id': 'Silueta', 'type': 'numeric'},
     ],
     style_header={

@@ -64,10 +64,7 @@ ESCALA_LOG = {
     "Industrial": (2.30, 0.45),
 }
 
-TARIFA_COP_KWH = {"Residencial": 820, "Comercial": 710, "Industrial": 640}
 TEMP_BASE = {"Andina": 17.0, "Caribe": 29.0, "Pacifica": 26.0}
-# El Pacifico concentra las fallas de suministro; la region andina es la mas estable.
-FALLAS_BASE = {"Andina": 0.8, "Caribe": 1.6, "Pacifica": 2.4}
 
 # Cobertura del programa de modernizacion de red (factor latente de calidad).
 PROP_RED_RENOVADA = 0.62
@@ -98,9 +95,10 @@ def generar_dataset(n=N, seed=SEED):
     sigma = np.array([ESCALA_LOG[s][1] for s in sector])
     escala = np.exp(rng.normal(mu, sigma))
 
-    area_m2 = 55 * escala * rng.lognormal(0, 0.18, n)
+    # La potencia instalada y las horas de operacion son magnitudes latentes: el
+    # consumo sale de multiplicarlas, pero el sistema comercial de la
+    # distribuidora no las registra cliente a cliente, asi que no se exportan.
     potencia_kw = 4.2 * escala * rng.lognormal(0, 0.20, n)
-    num_equipos = np.clip(np.round(5 * escala * rng.lognormal(0, 0.25, n)), 1, None)
 
     horas_base = {"Residencial": 110, "Comercial": 260, "Industrial": 480}
     horas_operacion = np.array(
@@ -127,10 +125,7 @@ def generar_dataset(n=N, seed=SEED):
         0.60,
         0.99,
     )
-    lam = np.array([FALLAS_BASE[r] for r in region]) * np.exp(-0.55 * calidad)
-    interrupciones_mes = rng.poisson(lam)
-
-    # --- Variables de resultado ---------------------------------------------
+    # --- Variable de resultado ---------------------------------------------
     # El consumo es potencia x horas, corregido por el clima (refrigeracion) y
     # penalizado cuando el factor de potencia es bajo.
     consumo_kwh = (
@@ -142,44 +137,32 @@ def generar_dataset(n=N, seed=SEED):
         * rng.lognormal(0, 0.10, n)
     ).clip(30, None)
 
-    costo_miles_cop = (
-        consumo_kwh * np.array([TARIFA_COP_KWH[s] for s in sector])
-        * rng.normal(1, 0.04, n) / 1000
-    ).clip(1, None)
-
+    # El conjunto observado se queda en TRES variables numericas, una por
+    # concepto: cuanto consume el cliente, con que calidad electrica y desde
+    # hace cuanto. Todo lo demas -area, potencia, equipos, horas, temperatura-
+    # participa en la simulacion pero no se exporta: son las magnitudes latentes
+    # que generan el consumo, no medidas que la distribuidora tenga en su
+    # sistema comercial. Un conjunto de diez columnas donde seis miden lo mismo
+    # no hace el analisis mas riguroso, solo mas dificil de leer.
     df = pd.DataFrame(
         {
             "id_cliente": [f"CL-{i:04d}" for i in range(1, n + 1)],
             "sector": sector,
             "region": region,
             "consumo_kwh": consumo_kwh.round(1),
-            "costo_miles_cop": costo_miles_cop.round(1),
-            "area_m2": area_m2.round(1),
-            "potencia_instalada_kw": potencia_kw.round(2),
-            "num_equipos": num_equipos.astype(int),
-            "horas_operacion": horas_operacion.round(0).astype(int),
-            "temperatura_c": temperatura_c.round(1),
             "factor_potencia": factor_potencia.round(3),
             "antiguedad_anios": antiguedad_anios.round(1),
-            "interrupciones_mes": interrupciones_mes.astype(int),
         }
     )
     return df
 
 
-# Columnas numericas que alimentan el PCA y el clustering. Se exporta para que
-# el resto de fases (y el dashboard) no repitan la lista.
+# Las tres variables numericas del conjunto. Se exporta para que el resto de
+# fases (y el dashboard) no repitan la lista.
 VARIABLES_NUMERICAS = [
     "consumo_kwh",
-    "costo_miles_cop",
-    "area_m2",
-    "potencia_instalada_kw",
-    "num_equipos",
-    "horas_operacion",
-    "temperatura_c",
     "factor_potencia",
     "antiguedad_anios",
-    "interrupciones_mes",
 ]
 
 
@@ -188,18 +171,12 @@ def main():
     salida = DATA_DIR / "consumo_energia.csv"
     df.to_csv(salida, index=False)
 
-    print(f"Dataset generado: {len(df)} clientes x {df.shape[1]} columnas")
+    print(f"Dataset generado: {len(df)} clientes x {df.shape[1]} columnas "
+          f"({len(VARIABLES_NUMERICAS)} numericas, 2 categoricas, 1 identificador)")
     print("\nDistribucion por sector:")
     print(df["sector"].value_counts().to_string())
-    print("\nMedias por sector (variables clave):")
-    print(
-        df.groupby("sector")[
-            ["consumo_kwh", "potencia_instalada_kw", "horas_operacion", "factor_potencia"]
-        ]
-        .mean()
-        .round(2)
-        .to_string()
-    )
+    print("\nMedias por sector:")
+    print(df.groupby("sector")[VARIABLES_NUMERICAS].mean().round(3).to_string())
     print(f"\nOK - Fase 0: {salida.relative_to(PROJECT_ROOT)}")
 
 

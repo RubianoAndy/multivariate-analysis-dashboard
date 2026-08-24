@@ -25,26 +25,27 @@
 
 ## 🎯 Descripción del Proyecto
 
-Segmentación de **300 clientes** de una distribuidora eléctrica colombiana. El conjunto de datos recoge diez variables de consumo, instalación y calidad del suministro, pero **el modelo usa solo tres**: la Fase 2 demuestra con la matriz de correlaciones y el índice KMO que las otras siete eran información repetida o ajena al cliente. El proyecto recorre la cadena completa del análisis multivariante —comprobar supuestos, contrastar hipótesis, seleccionar variables, reducir dimensiones, agrupar y comunicar— y termina en un **dashboard interactivo** que rehace el análisis en vivo sobre el subconjunto que elija quien lo consulta.
+Segmentación de **300 clientes** de una distribuidora eléctrica colombiana a partir de **tres variables**: cuánto consume el cliente, con qué calidad eléctrica y desde hace cuánto. El proyecto recorre la cadena completa del análisis multivariante —comprobar supuestos, contrastar hipótesis, reducir dimensiones, agrupar y comunicar— y termina en un **dashboard interactivo** que rehace el análisis en vivo sobre el subconjunto que elija quien lo consulta.
+
+Tres variables no son pocas por descuido: son las tres que el caso necesita. Un conjunto ancho, donde media docena de columnas miden lo mismo, no hace el análisis más riguroso —lo hace más difícil de leer y más fácil de contar mal.
 
 ### Lo que el análisis encuentra
 
 | Resultado | Cifra |
 |---|---|
-| Variables del conjunto → variables del modelo | 10 → **3** (redundancia y KMO) |
-| Variables del modelo → componentes retenidas | 3 → **2** |
-| Información conservada | **98,2 %** de la varianza |
-| Grupos descubiertos | **4** (silueta, Calinski-Harabasz y Davies-Bouldin coinciden) |
-| Silueta media | **0,471** |
-| Concordancia K-Means ↔ Ward | ARI = **0,839** |
+| Variables → componentes retenidas | 3 → **2** |
+| Información conservada | **98,4 %** de la varianza |
+| Grupos descubiertos | **4** (silueta y Davies-Bouldin coinciden) |
+| Silueta media | **0,484** |
+| Concordancia K-Means ↔ Ward | ARI = **0,846** |
 | Concordancia Python ↔ R | ARI = **1,000** (partición idéntica) |
 
-Las tres variables son `consumo_kwh`, `factor_potencia` y `antiguedad_anios`: cuánto consume el cliente, con qué calidad eléctrica y desde hace cuánto. Las dos componentes tienen lectura directa: **PC1 (65,5 %) es la calidad de la red** —factor de potencia frente a antigüedad— y **PC2 (32,7 %) es la escala de consumo**. El cruce de ambas produce cuatro segmentos, y uno de ellos —**C2: gran consumidor con red degradada**, 53 clientes que concentran el mayor consumo (4 694 kWh) con el peor factor de potencia (0,82) y la mayor antigüedad (20,9 años)— es el candidato natural a priorizar en un plan de inversión.
+Las dos componentes tienen lectura directa: **PC1 (65,3 %) es la calidad de la red** —el factor de potencia frente a la antigüedad, que se oponen— y **PC2 (33,1 %) es la escala de consumo**. El cruce de ambas produce cuatro segmentos, y uno de ellos —**C2: gran consumidor con red degradada**, 37 clientes con el mayor consumo (5 464 kWh), el peor factor de potencia (0,82) y la mayor antigüedad (21,2 años)— es el candidato natural a priorizar en un plan de inversión.
 
 ### Objetivos
 
-- Aplicar pruebas de hipótesis univariantes y multivariantes (Shapiro-Wilk, Levene, t de Welch, ANCOVA, ANOVA + Tukey, chi-cuadrado, MANOVA) y verificar la adecuación de los datos al PCA (Bartlett y KMO).
-- Seleccionar las variables del modelo con criterios cuantitativos, reducir la dimensionalidad con PCA e identificar segmentos con K-Means y agrupamiento jerárquico de Ward, validando la elección de *k* con cuatro índices.
+- Aplicar pruebas de hipótesis univariantes y multivariantes (Shapiro-Wilk, Levene, t de Welch, regresión múltiple, ANOVA + Tukey, chi-cuadrado, MANOVA) y verificar la adecuación de los datos al PCA (Bartlett, determinante y KMO).
+- Reducir la dimensionalidad con PCA e identificar segmentos con K-Means y agrupamiento jerárquico de Ward, validando la elección de *k* con cuatro índices.
 - Construir visualizaciones avanzadas con **Matplotlib, Seaborn y Plotly** en Python y **ggplot2** en R, comparando lo que aporta cada herramienta.
 - Publicar los resultados en un **dashboard interactivo** con identidad institucional.
 - Verificar de forma cruzada que Python y R llegan al mismo resultado.
@@ -59,11 +60,11 @@ Las tres variables son `consumo_kwh`, `factor_potencia` y `antiguedad_anios`: cu
 ├── requirements.txt                   # Dependencias de Python
 ├── app.py                             # Punto de entrada del dashboard (puerto 8050)
 ├── assets/
-│   └── dashboard.css                  # Estilos de los controles del dashboard
+│   └── dashboard.css                  # Armazón y estilos de los controles
 ├── data/
 │   ├── dataset/
-│   │   └── consumo_energia.csv        # 300 clientes × 13 columnas (semilla 42)
-│   └── processed/                     # 32 tablas de resultados (Python y R)
+│   │   └── consumo_energia.csv        # 300 clientes × 6 columnas (semilla 42)
+│   └── processed/                     # 30 tablas de resultados (Python y R)
 ├── public/
 │   └── assets/
 │       └── images/
@@ -89,7 +90,7 @@ Las tres variables son `consumo_kwh`, `factor_potencia` y `antiguedad_anios`: cu
         │   ├── estilo.py              # Paleta compartida por todas las figuras
         │   ├── dataset.py             # Fase 0 · generación del conjunto de datos
         │   ├── hypothesis_tests.py    # Fase 1 · pruebas de hipótesis y adecuación
-        │   ├── pca_clustering.py      # Fase 2 · selección de variables, PCA y clustering
+        │   ├── pca_clustering.py      # Fase 2 · PCA, selección de k y clustering
         │   ├── advanced_viz.py        # Fase 3 · visualización avanzada (Seaborn)
         │   └── interactive_viz.py     # Fase 4 · visualización interactiva (Plotly)
         └── R/
@@ -100,108 +101,103 @@ Las tres variables son `consumo_kwh`, `factor_potencia` y `antiguedad_anios`: cu
 
 ## 🧪 Pipeline del Laboratorio
 
-El flujo es **secuencial**: cada fase consume lo que produjo la anterior. Las decisiones de modelado no se toman por costumbre, sino a partir de los diagnósticos de la fase previa.
+El flujo es **secuencial**: cada fase consume lo que produjo la anterior, y las decisiones de modelado se toman a partir de los diagnósticos de la fase previa.
 
 ### Fase 0 · Generación del conjunto de datos
 
-[`dataset.py`](utils/codes/python/dataset.py) simula 300 clientes con **dos factores latentes**, no diez variables independientes: si lo fueran, la matriz de correlación sería la identidad y el PCA no tendría nada que resumir.
+[`dataset.py`](utils/codes/python/dataset.py) simula 300 clientes a partir de **dos factores latentes**, no de tres variables independientes: si lo fueran, la matriz de correlación sería la identidad y el PCA no tendría nada que resumir.
 
-- **Escala** — tamaño físico de la instalación (lognormal por sector, con solapamiento deliberado entre sectores). Gobierna área, potencia, equipos, horas, consumo y costo.
-- **Calidad** — estado de la red. No es un continuo, sino una **mezcla de dos poblaciones**: el 62 % del parque pasó por un programa de modernización y el resto conserva la infraestructura original. Esa mezcla es la estructura que el clustering debe descubrir sin conocer la etiqueta.
+- **Escala** — tamaño de la instalación (lognormal por sector, con solapamiento deliberado). De ella salen la potencia y las horas de operación, cuyo producto genera el consumo.
+- **Calidad** — estado de la red. No es un continuo, sino una **mezcla de dos poblaciones**: el 62 % del parque pasó por un programa de modernización y el resto conserva la infraestructura original. Gobierna el factor de potencia y la antigüedad, y es la estructura que el clustering debe descubrir sin conocer la etiqueta.
+
+El conjunto **observado** se queda en tres variables numéricas. La potencia, las horas y la temperatura participan en la simulación pero no se exportan: son magnitudes latentes que generan el consumo, no medidas que el sistema comercial de una distribuidora tenga cliente a cliente.
 
 | Salida | Contenido |
 |---|---|
-| `data/dataset/consumo_energia.csv` | 300 clientes × 13 columnas (2 categóricas, 10 numéricas, 1 identificador) |
+| `data/dataset/consumo_energia.csv` | 300 clientes × 6 columnas: identificador, sector, región y las tres numéricas |
 
 ### Fase 1 · Pruebas de hipótesis y adecuación al PCA
 
-[`hypothesis_tests.py`](utils/codes/python/hypothesis_tests.py) responde dos preguntas antes de reducir nada.
+[`hypothesis_tests.py`](utils/codes/python/hypothesis_tests.py) responde tres preguntas antes de reducir nada.
 
-**¿Los grupos que ya conocemos son realmente distintos?**
+**¿Se cumplen los supuestos?**
+
+| Prueba | Escala original | En logaritmo |
+|---|---|---|
+| Shapiro-Wilk (por sector) | p = 7,5·10⁻⁴ / 1,8·10⁻⁵ / 1,4·10⁻¹⁶ → **se rechaza** | p = 0,485 / 0,949 / 0,103 → **no se rechaza** |
+| Levene (entre sectores) | W = 96,93 · p < 0,001 → **se rechaza** | W = 1,57 · p = 0,210 → **no se rechaza** |
+
+El logaritmo recupera a la vez la normalidad y la homocedasticidad, así que todo lo que sigue trabaja sobre `log(consumo)`.
+
+**¿Los grupos que ya conocemos son distintos?**
 
 | Prueba | Resultado | Decisión (α = 0,05) |
 |---|---|---|
-| Shapiro-Wilk sobre `consumo_kwh` | p < 10⁻⁵ en los tres sectores | Se rechaza la normalidad |
-| Shapiro-Wilk sobre `log(consumo)` | p = 0,31 / 0,41 / 0,96 | **No** se rechaza → se trabaja en logaritmos |
-| ANOVA `log(consumo) ~ sector` | F = 984,4 · η² = 0,869 | Se rechaza H₀ |
-| Tukey HSD | Los tres pares difieren (p < 0,001) | Industrial consume 6,3× el comercial |
-| Chi-cuadrado `sector × región` | χ² = 4,01 · p = 0,404 | **No** se rechaza → son independientes |
-| MANOVA (sector sobre las 10 variables del conjunto) | Λ de Wilks = 0,054 · p ≈ 10⁻¹⁶⁸ | Se rechaza H₀ |
+| ANOVA `log(consumo) ~ sector` | F = 1 086,7 · η² = 0,880 | Se rechaza H₀ |
+| Tukey HSD | Los tres pares difieren (p < 0,001) | Industrial consume 6,25× el comercial |
+| Chi-cuadrado `sector × región` | χ² = 4,01 · p = 0,404 · V = 0,08 | **No** se rechaza → son independientes |
+| MANOVA (sector sobre las tres variables) | Λ de Wilks = 0,109 · F = 200,2 · p ≈ 10⁻¹³⁸ | Se rechaza H₀ |
+| t de Welch (Caribe vs Andina) | p = 0,898 · y p = 0,242 restringiendo a residencial | **No** se rechaza |
 
-**El hallazgo metodológico central.** La t de Welch que compara el consumo del Caribe frente al de la región Andina **no** resulta significativa (p = 0,82), ni siquiera restringida al sector residencial y en logaritmos (p = 0,24). Pero el efecto climático existe: cuando la **ANCOVA** controla la escala del cliente, aparece con nitidez.
+El contraste regional no detecta nada, y conviene reportarlo tal cual: el consumo está dominado por el tamaño de la instalación —que este conjunto no mide— y ese ruido entierra cualquier diferencia geográfica. Una prueba que no rechaza también informa.
+
+**¿Por qué hace falta reducir dimensiones?** Ésta es la pregunta que enlaza con la Fase 2, y se responde con una regresión:
 
 ```
-log(consumo) ~ log(potencia) + log(horas) + temperatura + factor_potencia + sector
-temperatura_c:  β = +0,0105  ·  t = 10,47  ·  p ≈ 5 × 10⁻²²  ·  R² = 0,9965
-                → +1,06 % de consumo por cada grado adicional
+log(consumo) ~ factor_potencia + antiguedad_anios + sector
+factor_potencia:   β = −7,57   IC 95 % = [−10,88; −4,25]   VIF = 8,9
+antiguedad_anios:  β = −0,044  IC 95 % = [−0,074; −0,014]  VIF = 8,9
 ```
 
-Un contraste bivariante puede ocultar una relación que sí existe: la variación entre sectores —cuatro unidades de logaritmo, unas cincuenta veces en kWh— entierra un efecto del 15 %. Es el argumento del análisis multivariante, y aquí no se enuncia, se demuestra.
+El generador fija el consumo proporcional a `0,92 / factor_potencia`, de modo que la pendiente física ronda **−1,1**. La estimación se va a −7,57 y su intervalo ni siquiera contiene el valor verdadero. Dos causas se suman: los predictores están correlacionados a −0,94 (de ahí el VIF de 8,9, muy por encima del umbral de 5) y el modelo omite el tamaño de la instalación. El coeficiente resultante no se puede interpretar — y ése es exactamente el problema que el PCA viene a resolver.
 
-**¿Tiene sentido aplicar PCA a esta matriz?**
+**¿Tiene sentido aplicar PCA?**
 
 | Diagnóstico | Valor | Lectura |
 |---|---|---|
-| Esfericidad de Bartlett | χ²(45) = 4 809,7 · p < 0,001 | La matriz difiere de la identidad: el PCA es pertinente |
-| Determinante de R | 8,2 × 10⁻⁸ | Multicolinealidad alta, condición favorable |
-| KMO global | **0,838** | Muy bueno |
-| KMO de `temperatura_c` | **0,456** | **Inaceptable** (umbral de Kaiser: 0,50) |
+| Esfericidad de Bartlett | χ²(3) = 701,9 · p < 0,001 | La matriz difiere de la identidad: el PCA es pertinente |
+| Determinante de R | 0,094 | Lejos de 1: hay estructura que comprimir |
+| KMO global | 0,430 | **No concluyente** |
 
-Ese último valor no se ignora: **decide el diseño del modelo**. La temperatura describe el clima del municipio, no al cliente, y no comparte factores comunes con el resto. Se excluye del PCA y del clustering; su efecto ya quedó cuantificado y aislado en la ANCOVA, y `region` la conserva como atributo categórico.
+Sobre el KMO conviene ser explícito en vez de esconderlo: el índice compara correlaciones simples con parciales, y con solo tres variables cada parcial se calcula controlando por una sola, de modo que las correlaciones anti-imagen quedan infladas por construcción. Kaiser lo pensó para baterías de muchos indicadores; con tres no decide nada. La pertinencia del PCA la sostiene Bartlett.
 
-### Fase 2 · Selección de variables, componentes principales y clustering
+### Fase 2 · Componentes principales y clustering
 
-[`pca_clustering.py`](utils/codes/python/pca_clustering.py) empieza por decidir **con qué variables** trabajar. Diez columnas no hacen el análisis más riguroso: lo hacen más difícil de leer, y aquí la mayoría son la misma información repetida.
-
-**Paso 1 · Bloques de variables.** La función `bloques_de_variables` agrupa las nueve candidatas por la distancia `1 − |r|`, de modo que dos variables que miden lo mismo quedan a distancia casi cero. El agrupamiento jerárquico encuentra tres bloques:
-
-| Bloque | Variables | r medio interno | Representante |
-|---|---|---|---|
-| 1 · Tamaño del cliente | consumo, costo, área, potencia, equipos, horas | 0,88 – 0,96 | `consumo_kwh` |
-| 2 · Estado de la red | factor de potencia, antigüedad | 0,97 | `factor_potencia` |
-| 3 · Calidad del servicio | interrupciones | — | `interrupciones_mes` |
-
-**Paso 2 · Las tres finales.** Se conserva `consumo_kwh` como representante del primer bloque —seis variables con correlaciones sobre 0,90 son una sola— y las dos que definen el segundo, `factor_potencia` y `antiguedad_anios`. Se descarta `interrupciones_mes`, un conteo de Poisson mucho más ruidoso cuya señal ya está en las otras dos, y `temperatura_c` por su KMO de 0,456.
-
-> Las tres miden conceptos distintos: cuánto consume el cliente, con qué calidad eléctrica y desde hace cuánto. Que dos de ellas estén correlacionadas (r = −0,94) no es un defecto del diseño: que las instalaciones viejas tengan mal factor de potencia es un hallazgo del dominio, y comprimirlo en una sola componente es exactamente el trabajo del PCA. De hecho, una selección que evite toda redundancia deja al PCA sin nada que comprimir: las tres variables sin correlacionar que propone el criterio automático solo alcanzan el 83,2 % en dos componentes, frente al 98,2 % de estas.
-
-**Paso 3 · PCA.** Sobre `log(consumo)`, factor de potencia y antigüedad, estandarizadas:
+[`pca_clustering.py`](utils/codes/python/pca_clustering.py) estandariza las tres variables —con logaritmo en el consumo— y extrae las componentes.
 
 | Componente | Autovalor | Varianza | Interpretación |
 |---|---|---|---|
-| PC1 | 1,97 | 65,5 % | **Calidad de la red** — factor de potencia (+0,99) frente a antigüedad (−0,97) |
-| PC2 | 0,98 | 32,7 % | **Escala de consumo** — log del consumo (+0,97) |
-| PC3 | 0,05 | 1,8 % | Residuo: lo que separa a las dos variables de red |
+| PC1 | 1,96 | 65,3 % | **Calidad de la red** — factor de potencia (+0,99) frente a antigüedad (−0,98) |
+| PC2 | 1,00 | 33,1 % | **Escala de consumo** — log del consumo (+0,99) |
+| PC3 | 0,05 | 1,6 % | Residuo: lo poco que separa a las dos variables de red |
 
-**Aquí el criterio de Kaiser deja de servir.** Sobre matriz de correlaciones el autovalor medio vale 1 por construcción, así que "autovalor > 1" significa "por encima del promedio". Con tres variables, PC2 se queda en 0,98 y Kaiser la descartaría pese a recoger un tercio de la información y ser la única que mide el consumo. Se retiene por **varianza acumulada del 80 %** —dos componentes, 98,2 %— y la tabla sigue reportando Kaiser al lado para dejar la discrepancia a la vista.
+**Aquí el criterio de Kaiser deja de servir.** Sobre matriz de correlaciones el autovalor medio vale 1 por construcción, así que "autovalor > 1" significa "por encima del promedio". Con tres variables PC2 se queda en 0,9975 y Kaiser la descartaría por dos milésimas, pese a recoger un tercio de la información y ser la única componente que mide el consumo. Se retiene por **varianza acumulada del 80 %** —dos componentes, 98,4 %— y la tabla sigue reportando Kaiser al lado para dejar la discrepancia a la vista.
 
-**Paso 4 · Una decisión que cambia el resultado.** El clustering no se hace sobre las puntuaciones crudas, sino sobre las **componentes retenidas estandarizadas**. Las crudas heredan la varianza del autovalor (1,97 frente a 0,98), de modo que la distancia euclídea quedaría dominada por PC1 y K-Means partiría a los clientes solo por el estado de su red, ignorando cuánto consumen.
+**Una decisión que cambia el resultado.** El clustering no se hace sobre las puntuaciones crudas, sino sobre las **componentes retenidas estandarizadas**. Las crudas heredan la varianza del autovalor (1,96 frente a 1,00), de modo que la distancia euclídea quedaría dominada por PC1 y K-Means partiría a los clientes solo por el estado de su red, ignorando cuánto consumen.
 
-**Paso 5 · Selección de k.** Los cuatro índices se calculan para k = 2…8 y **tres coinciden en k = 4**:
+**Selección de k.** Los cuatro índices se calculan para k = 2…8:
 
 | k | Inercia | Silueta | Calinski-Harabasz | Davies-Bouldin |
 |---|---|---|---|---|
-| 2 | 358,4 | 0,401 | 200,9 | 1,087 |
-| 3 | 221,3 | 0,419 | 254,2 | 0,805 |
-| **4** | **132,1** | **0,471** ↑ | **349,4** ↑ | **0,701** ↓ |
-| 5 | 106,6 | 0,444 | 341,3 | 0,747 |
-| 6 | 88,1 | 0,426 | 341,9 | 0,770 |
+| 2 | 358,7 | 0,416 | 200,5 | 1,052 |
+| 3 | 199,3 | 0,454 | 298,6 | 0,748 |
+| **4** | **130,5** | **0,484** ↑ | 355,0 | **0,692** ↓ |
+| 5 | 101,3 | 0,464 | 363,3 ↑ | 0,715 |
+| 6 | 86,7 | 0,415 | 348,3 | 0,782 |
 
-**Validación.** El agrupamiento jerárquico de Ward, con una lógica distinta, llega casi a la misma partición (ARI = 0,839): la estructura es de los datos, no del método.
+Calinski-Harabasz alcanza su máximo en k = 5, pero por un margen estrecho (363 frente a 355) mientras la silueta y Davies-Bouldin apuntan con claridad a 4. Cuando los índices discrepan así, la parsimonia decide.
+
+**Validación.** El agrupamiento jerárquico de Ward, con una lógica distinta, llega casi a la misma partición (ARI = 0,846): la estructura es de los datos, no del método.
 
 ### Fase 3 · Visualización avanzada con Seaborn
 
-[`advanced_viz.py`](utils/codes/python/advanced_viz.py) produce seis figuras que responden preguntas del analista, no del modelo.
-
-Dos de ellas se dibujan a propósito sobre las **nueve variables candidatas** y no sobre las tres finales: la matriz de correlación y el **clustermap** son la evidencia de por qué sobraban seis. El dendrograma superior del clustermap agrupa las variables solo, sin que nadie le diga cuáles miden lo mismo, y reproduce los bloques que decidieron la selección. Dibujarlas ya reducidas sería enseñar la conclusión y esconder el argumento.
-
-Las otras cuatro trabajan sobre el modelo: matriz de dispersión por grupo (`PairGrid`, ahora seis paneles legibles en vez de veinticinco), perfil de clústeres en puntuaciones z, violines por grupo y la versión gráfica de la ANCOVA.
+[`advanced_viz.py`](utils/codes/python/advanced_viz.py) produce seis figuras que responden preguntas del analista, no del modelo: matriz de correlación anotada, matriz de dispersión por grupo (`PairGrid`, seis paneles legibles), **clustermap** con dendrograma marginal, perfil de clústeres en puntuaciones z, violines por grupo y la versión gráfica de la regresión que motiva el PCA.
 
 ### Fase 4 · Visualización interactiva con Plotly
 
 [`interactive_viz.py`](utils/codes/python/interactive_viz.py) exporta cuatro figuras en **HTML** —biplot con detalle por cliente, dispersión 3D rotable, coordenadas paralelas con filtros arrastrables y sunburst de composición— y en PNG para el informe.
 
-Las cuatro comparten una única copia de `plotly.min.js` depositada en la carpeta: se abren con doble clic, sin servidor ni conexión, siempre que la carpeta viaje completa. Incrustar la biblioteca en cada archivo los dejaría en 4,7 MB cada uno; enlazarla a un CDN los volvería inservibles sin red.
+Como el modelo usa exactamente tres variables, la dispersión 3D no es una proyección: es el espacio completo del análisis, sin pérdida. Las cuatro figuras comparten una única copia de `plotly.min.js` depositada en la carpeta, así que se abren con doble clic, sin servidor ni conexión, siempre que la carpeta viaje completa.
 
 ### Fase 5 · Réplica en R y verificación cruzada
 
@@ -209,13 +205,13 @@ Las cuatro comparten una única copia de `plotly.min.js` depositada en la carpet
 
 | Comprobación | Python | R | Diferencia |
 |---|---|---|---|
-| Autovalor de PC1 | 1,9725 | 1,9659 | 0,0066 |
-| Varianza acumulada en 2 componentes | 98,19 % | 98,19 % | 0,00 |
+| Autovalor de PC1 | 1,9640 | 1,9574 | 0,0066 |
+| Varianza acumulada en 2 componentes | 98,39 % | 98,39 % | 0,00 |
 | k elegido por silueta | 4 | 4 | — |
-| Silueta media | 0,4706 | 0,4706 | 0,0000 |
+| Silueta media | 0,4836 | 0,4836 | 0,0000 |
 | **Partición de los 300 clientes** | — | — | **ARI = 1,000** |
 
-La diferencia en autovalores es el denominador de la desviación típica (*n* frente a *n*−1) y no altera ningún porcentaje. La partición es **idéntica cliente a cliente**: 96 / 63 / 53 / 88 en ambos lenguajes.
+La diferencia en autovalores es el denominador de la desviación típica (*n* frente a *n*−1) y no altera ningún porcentaje. La partición es **idéntica cliente a cliente**: 64 / 98 / 37 / 101 en ambos lenguajes.
 
 Dos indeterminaciones se resuelven de forma explícita para que las figuras de una y otra fase se puedan comparar lado a lado:
 
@@ -226,18 +222,31 @@ Dos indeterminaciones se resuelven de forma explícita para que las figuras de u
 
 ## 📊 Los cuatro segmentos
 
-| Grupo | n | Consumo medio | F. potencia | Antigüedad | Interrup./mes |
-|---|---:|---:|---:|---:|---:|
-| **C0** · consumidor pequeño, red confiable | 96 | 154,6 kWh | 0,94 | 9,5 años | 0,93 |
-| **C1** · consumidor pequeño, red degradada | 63 | 179,1 kWh | 0,83 | 21,1 años | 2,68 |
-| **C2** · gran consumidor, red degradada | 53 | 4 693,5 kWh | 0,82 | 20,9 años | 2,62 |
-| **C3** · gran consumidor, red confiable | 88 | 3 328,1 kWh | 0,93 | 9,6 años | 0,82 |
+| Grupo | n | Consumo medio | F. potencia | Antigüedad |
+|---|---:|---:|---:|---:|
+| **C0** · consumidor pequeño, red degradada | 64 | 214,2 kWh | 0,83 | 20,9 años |
+| **C1** · gran consumidor, red confiable | 98 | 3 473,0 kWh | 0,93 | 9,4 años |
+| **C2** · gran consumidor, red degradada | 37 | 5 464,5 kWh | 0,82 | 21,2 años |
+| **C3** · consumidor pequeño, red confiable | 101 | 175,1 kWh | 0,94 | 9,0 años |
 
 Tres lecturas que sostiene la evidencia:
 
-1. **Los grupos cruzan la etiqueta de sector, no la reproducen.** C2 y C3 mezclan clientes comerciales e industriales; C0 y C1 dividen a los residenciales en dos poblaciones que la etiqueta administrativa no distinguía. La segmentación aporta información que el sector no tenía.
-2. **El modelo generaliza a las variables que no vio.** Los cuatro grupos se separan también en las siete variables descartadas —área, potencia, equipos, horas, costo e interrupciones—, aunque ninguna participó en el ajuste. Y la temperatura permanece plana (z entre −0,08 y +0,12): la partición responde al perfil eléctrico y no a la geografía, coherente con el KMO que motivó excluirla.
-3. **C2 es el segmento accionable.** Son 53 clientes —el 18 % del padrón— que combinan el mayor consumo con el peor estado de red: un factor de potencia de 0,82 implica pérdidas por reactiva, y 2,62 interrupciones mensuales sobre los clientes de mayor facturación es donde el costo de la falla es más alto.
+1. **Los grupos cruzan la etiqueta de sector, no la reproducen.** C1 y C2 mezclan clientes comerciales e industriales; C0 y C3 dividen a los residenciales en dos poblaciones que la etiqueta administrativa no distinguía. La segmentación aporta información que el sector no tenía.
+2. **La geografía no interviene.** El reparto por región es prácticamente uniforme entre los cuatro grupos, coherente con el chi-cuadrado que no rechazó la independencia entre sector y región. La partición responde al perfil eléctrico del cliente.
+3. **C2 es el segmento accionable.** Son 37 clientes —el 12 % del padrón— que combinan el mayor consumo con el peor estado de red: un factor de potencia de 0,82 implica pérdidas por reactiva, y concentrar ese deterioro en los clientes de mayor facturación es donde el costo de la falla es más alto.
+
+### Las puntuaciones z que dan nombre a los grupos
+
+| Grupo | log Consumo | F. potencia | Antigüedad |
+|---|---:|---:|---:|
+| C0 | −0,71 | −1,16 | +1,21 |
+| C1 | +0,87 | +0,49 | −0,59 |
+| C2 | +1,19 | −1,39 | +1,25 |
+| C3 | −0,83 | +0,76 | −0,65 |
+
+Las z se calculan sobre la matriz transformada, la misma que usa el PCA. Con el consumo en su escala original la cola industrial infla la desviación típica y comprime a todos los demás: un grupo de 3 473 kWh —veinte veces la media residencial— se quedaría en z = 0,46 y parecería moderado. En logaritmo, que es donde el consumo se distribuye de forma simétrica, la z dice lo que se espera que diga.
+
+---
 
 ## 🖼️ Galería
 
@@ -247,13 +256,13 @@ Tres lecturas que sostiene la evidencia:
     <img src="public/assets/images/screenshots/Dashboard_1.png" width="880" alt="Vista general del dashboard">
 </div>
 
-**Vista general** — indicadores, plano de componentes con las cargas superpuestas y varianza explicada. La barra lateral filtra por sector y región, ajusta *k* y permite colorear el plano por grupo descubierto, sector declarado o región, que es la forma directa de comprobar si la segmentación reproduce lo que ya se sabía o aporta algo nuevo. Bajo los filtros, la nota metodológica deja a la vista por qué el modelo usa tres variables y no diez.
+**Vista general** — indicadores, plano de componentes con las cargas superpuestas y varianza explicada. La barra lateral filtra por sector y región, ajusta *k* y permite colorear el plano por grupo descubierto, sector declarado o región, que es la forma directa de comprobar si la segmentación reproduce lo que ya se sabía o aporta algo nuevo.
 
 <div align="center">
     <img src="public/assets/images/screenshots/Dashboard_scroll.png" width="880" alt="El dashboard desplazado: la barra lateral y el encabezado permanecen fijos">
 </div>
 
-**La página no se desplaza: lo hace el lienzo.** El dashboard ocupa exactamente la altura de la ventana y se reparte en dos columnas de altura completa; el scroll vive dentro de la derecha. Así la barra lateral —con sus filtros y la firma— queda siempre entera y a mano, y el encabezado se mantiene pegado arriba: da igual a qué altura del análisis se esté, los controles y el título nunca se pierden de vista. La alternativa, dejar crecer el documento, obliga a subir hasta el principio cada vez que se quiere cambiar un filtro.
+**La página no se desplaza: lo hace el lienzo.** El dashboard ocupa exactamente la altura de la ventana y se reparte en dos columnas de altura completa; el scroll vive dentro de la derecha. Así la barra lateral —con sus filtros y la firma— queda siempre entera y a mano, y el encabezado se mantiene pegado arriba: da igual a qué altura del análisis se esté, los controles y el título nunca se pierden de vista.
 
 <div align="center">
     <img src="public/assets/images/screenshots/Dashboard_autor.png" width="470" alt="Ficha del autor en la barra lateral del dashboard">
@@ -265,20 +274,20 @@ Tres lecturas que sostiene la evidencia:
     <img src="public/assets/images/screenshots/Dashboard_3.png" width="880" alt="El dashboard tras filtrar por sector industrial">
 </div>
 
-**El dashboard recalcula, no filtra.** Al restringir la vista al sector industrial no se ocultan puntos: se vuelve a estandarizar, extraer componentes y agrupar sobre esos 57 clientes. El resultado es otro —PC1 sube del 65,5 % al 72,8 % y la silueta mejora de 0,471 a 0,489, porque dentro de un sector homogéneo los grupos quedan más separados—, y los nombres de los segmentos cambian con ellos: lo que a escala global es un "consumidor pequeño" pasa a ser "medio-alto" dentro del industrial. El PCA de un subconjunto no es el PCA global mirado de cerca.
+**El dashboard recalcula, no filtra.** Al restringir la vista al sector industrial no se ocultan puntos: se vuelve a estandarizar, extraer componentes y agrupar sobre esos clientes. El resultado es otro, y los nombres de los segmentos cambian con él: lo que a escala global es un "consumidor pequeño" pasa a ser "medio-alto" dentro del industrial. El PCA de un subconjunto no es el PCA global mirado de cerca.
 
 <div align="center">
     <img src="public/assets/images/screenshots/Dashboard_2.png" width="880" alt="Vista completa del dashboard">
 </div>
 
-**Vista completa** — todo el lienzo desenrollado en una sola imagen: bajo el plano principal quedan las cargas, los perfiles en z, las coordenadas paralelas, la composición por sector y región, la matriz de correlaciones que justifica la selección de variables y la tabla de perfiles.
+**Vista completa** — todo el lienzo desenrollado en una sola imagen: bajo el plano principal quedan las cargas, los perfiles en z, las coordenadas paralelas, la composición por sector y región, la matriz de correlaciones y la tabla de perfiles.
 
 ### Componentes principales y clustering (Python · Matplotlib)
 
 | | |
 |---|---|
 | ![Scree plot](public/assets/images/figures/python/multivariate/01_scree_varianza.png) | ![Biplot](public/assets/images/figures/python/multivariate/02_biplot_pca.png) |
-| **Sedimentación** — dos componentes acumulan el 98,2 % | **Biplot** — factor de potencia y antigüedad se oponen sobre PC1; el consumo sube por PC2 |
+| **Sedimentación** — dos componentes acumulan el 98,4 % | **Biplot** — factor de potencia y antigüedad se oponen sobre PC1; el consumo sube por PC2 |
 | ![Selección de k](public/assets/images/figures/python/multivariate/03_seleccion_k.png) | ![Clústeres en el plano](public/assets/images/figures/python/multivariate/05_clusters_pca.png) |
 | **Selección de k** — el codo sugiere, la silueta decide | **Partición** — los cuatro grupos ocupan un cuadrante cada uno |
 
@@ -289,29 +298,27 @@ Tres lecturas que sostiene la evidencia:
 
 ### Exploración avanzada (Python · Seaborn)
 
+<div align="center">
+    <img src="public/assets/images/figures/python/advanced/06_regresion_colinealidad.png" width="900" alt="Regresión con predictores colineales">
+</div>
+
+**Por qué hacen falta las componentes principales** — el panel izquierdo muestra el problema (los dos predictores caen casi sobre una recta, r = −0,94) y el derecho su consecuencia (una pendiente de −7,57 cuando el valor físico ronda −1,1). Es la figura que enlaza la Fase 1 con la Fase 2.
+
 | | |
 |---|---|
 | ![Correlaciones](public/assets/images/figures/python/advanced/01_heatmap_correlacion.png) | ![Matriz de dispersión](public/assets/images/figures/python/advanced/02_matriz_dispersion.png) |
-| **Correlaciones** — el bloque de seis que justifica quedarse con una | **Dispersión por grupo** — seis paneles legibles, uno por par |
+| **Correlaciones** — el −0,94 que el PCA comprime | **Dispersión por grupo** — seis paneles, uno por par |
 
 <div align="center">
-    <img src="public/assets/images/figures/python/advanced/03_clustermap.png" width="760" alt="Clustermap">
+    <img src="public/assets/images/figures/python/advanced/03_clustermap.png" width="700" alt="Clustermap">
 </div>
 
-**Clustermap** — las nueve variables candidatas en columnas y los 300 clientes en filas, ambos reordenados por similitud. El dendrograma superior agrupa las variables sin ayuda y reproduce los bloques que decidieron la selección; las marcadas con `*` son las tres del modelo.
-
-Las filas se ordenan por el espacio del modelo, no por las nueve variables, y esa distinción importa: agrupando los clientes con las nueve, el dendrograma lateral y la franja de color responden a criterios distintos y concuerdan solo a medias (ARI 0,49), de modo que la franja sale entreverada y la figura aparenta un desacuerdo que no existe. Ordenando por el mismo espacio en el que se agrupó (ARI 0,85) los bloques quedan limpios y se ve lo que interesa: **los grupos hallados con tres variables también organizan las seis que el modelo nunca vio**.
-
-<div align="center">
-    <img src="public/assets/images/figures/python/advanced/04_perfil_clusters.png" width="900" alt="Perfil de clústeres en z">
-</div>
-
-**Perfil en puntuaciones z** — la tabla de interpretación convertida en figura, sobre las diez variables y con `*` en las tres del modelo. Los grupos se separan también en las siete que no entraron al ajuste, y la columna de temperatura permanece plana: la partición no reproduce la geografía.
+**Clustermap** — es la única figura que muestra el resultado cliente por cliente en vez de por promedios. El dendrograma de la izquierda reordena a los 300 clientes por similitud sin conocer la partición, y forma los mismos bloques que K-Means marca en la franja de color: la estructura se sostiene individuo a individuo.
 
 | | |
 |---|---|
-| ![Distribuciones](public/assets/images/figures/python/advanced/05_distribuciones_cluster.png) | ![Regresión](public/assets/images/figures/python/advanced/06_regresion_temperatura.png) |
-| **Violines** — la forma completa, no solo los cuartiles | **ANCOVA en versión gráfica** — pendientes reales pero pequeñas frente al ruido |
+| ![Perfil de clústeres](public/assets/images/figures/python/advanced/04_perfil_clusters.png) | ![Distribuciones](public/assets/images/figures/python/advanced/05_distribuciones_cluster.png) |
+| **Perfil en z** — la tabla de interpretación hecha figura | **Violines** — la forma completa, no solo los cuartiles |
 
 ### Figuras interactivas (Python · Plotly)
 
@@ -320,7 +327,7 @@ Se abren con doble clic, sin servidor ni conexión, mientras la carpeta que los 
 | Figura | Interacción | Archivo |
 |---|---|---|
 | ![Biplot interactivo](public/assets/images/figures/python/interactive/01_biplot_interactivo.png) | Del punto atípico al cliente que lo produce | [`01_biplot_interactivo.html`](public/assets/images/figures/python/interactive/01_biplot_interactivo.html) |
-| ![Dispersión 3D](public/assets/images/figures/python/interactive/02_dispersion_3d.png) | Rotar para comprobar si los grupos siguen separados fuera del plano | [`02_dispersion_3d.html`](public/assets/images/figures/python/interactive/02_dispersion_3d.html) |
+| ![Dispersión 3D](public/assets/images/figures/python/interactive/02_dispersion_3d.png) | Rotar el espacio completo del modelo | [`02_dispersion_3d.html`](public/assets/images/figures/python/interactive/02_dispersion_3d.html) |
 | ![Coordenadas paralelas](public/assets/images/figures/python/interactive/03_coordenadas_paralelas.png) | Arrastrar un intervalo sobre cualquier eje filtra el resto | [`03_coordenadas_paralelas.html`](public/assets/images/figures/python/interactive/03_coordenadas_paralelas.html) |
 | ![Sunburst](public/assets/images/figures/python/interactive/04_sunburst_composicion.png) | Clic en un anillo para profundizar | [`04_sunburst_composicion.html`](public/assets/images/figures/python/interactive/04_sunburst_composicion.html) |
 
@@ -334,7 +341,7 @@ Se abren con doble clic, sin servidor ni conexión, mientras la carpeta que los 
 | **Silueta con `cluster::silhouette`** — máximo en k = 4 | **Partición** — idéntica a la de Python, cliente a cliente |
 
 <div align="center">
-    <img src="public/assets/images/figures/r/multivariate/05_perfil_clusters.png" width="900" alt="Perfil de clústeres en R">
+    <img src="public/assets/images/figures/r/multivariate/05_perfil_clusters.png" width="760" alt="Perfil de clústeres en R">
 </div>
 
 **Perfil en R** — mismas cifras que la versión de Seaborn, construidas con `geom_tile`. R aporta además su propia figura interactiva, [`06_clusters_interactivo.html`](public/assets/images/figures/r/multivariate/06_clusters_interactivo.html), generada con `plotly` y `htmlwidgets`.
@@ -348,14 +355,14 @@ Las cinco bibliotecas no compiten: cada fase usa la que resuelve su problema con
 | Herramienta | Dónde se usa | Por qué esa y no otra |
 |---|---|---|
 | **Matplotlib** | Fase 2 — figuras del modelo | Control absoluto del lienzo. El biplot exige dibujar flechas desde el origen, escalarlas a la nube de puntos y colocar cada etiqueta fuera de su punta sin que se pisen; nada de eso existe como primitiva en las bibliotecas de alto nivel. |
-| **Seaborn** | Fase 3 — exploración | Tres capacidades que en Matplotlib costarían decenas de líneas: mapa de calor anotado con paleta divergente centrada, `PairGrid` por grupos y `clustermap`, que reordena filas y columnas por similitud y dibuja los dendrogramas en los márgenes. |
+| **Seaborn** | Fase 3 — exploración | Tres capacidades que en Matplotlib costarían decenas de líneas: mapa de calor anotado con paleta divergente centrada, `PairGrid` por grupos y `clustermap`, que reordena las filas por similitud y dibuja el dendrograma en el margen. |
 | **Plotly** | Fase 4 — comunicación | Cambia el contrato: el lector hace zoom, aísla series, rota el espacio y lee los datos de un cliente al pasar el cursor. La interpretación deja de estar cerrada de antemano. |
 | **Dash** | Dashboard | Convierte las figuras de Plotly en una aplicación con estado. El valor no es mostrar gráficas, sino **rehacer el análisis** con cada interacción. |
 | **ggplot2** | Fase 5 — verificación | La gramática de gráficos hace que replicar una figura sea describirla, no reconstruirla. Al ser una implementación independiente, es una verificación real y no una repetición del mismo código. |
 
 Dos apuntes prácticos encontrados al construirlo:
 
-- **Seaborn no siempre gana.** `clustermap` monta sus ejes sobre un *gridspec* propio que ignora `tight_layout`, y la barra de color es una celda de esa rejilla: hay que bajar el techo a mano y reposicionarla después. Matplotlib puro habría sido más predecible, pero no habría dado los dendrogramas marginales.
+- **Seaborn no siempre gana.** `clustermap` monta sus ejes sobre un *gridspec* propio que ignora `tight_layout`, y la barra de color es una celda de esa rejilla: hay que bajar el techo a mano y reposicionarla después. Matplotlib puro habría sido más predecible, pero no habría dado el dendrograma marginal.
 - **La ergonomía de Plotly tiene aristas.** Una anotación con flecha ancla el texto en la cola, no en la punta, así que un biplot necesita dos anotaciones por vector. Y si un `tickval` cae justo en el extremo del rango, el número se imprime dos veces sobre el mismo punto del eje.
 
 ---
@@ -371,7 +378,7 @@ Dos apuntes prácticos encontrados al construirlo:
 | `numpy` | 2.5.2 | Cálculo numérico |
 | `pandas` | 3.0.5 | Manejo de datos y tablas de resultados |
 | `scipy` | 1.18.1 | Shapiro-Wilk, Levene, t de Welch, chi-cuadrado, dendrograma |
-| `statsmodels` | 0.14.6 | ANOVA, ANCOVA, Tukey y MANOVA |
+| `statsmodels` | 0.14.6 | Regresión, ANOVA, Tukey y MANOVA |
 | `scikit-learn` | 1.9.0 | PCA, K-Means, jerárquico y métricas de validación |
 | `matplotlib` | 3.11.1 | Figuras de la Fase 2 |
 | `seaborn` | 0.13.2 | Figuras de la Fase 3 |
@@ -423,7 +430,7 @@ python app.py                                   # http://localhost:8050/
 
 ## 🔑 Palabras Clave
 
-`Análisis Multivariante` · `PCA` · `K-Means` · `Clustering Jerárquico` · `Pruebas de Hipótesis` · `MANOVA` · `ANCOVA` · `KMO y Bartlett` · `Dashboard Interactivo` · `Dash` · `Plotly` · `Seaborn` · `ggplot2` · `scikit-learn` · `Ciencia de Datos`
+`Análisis Multivariante` · `PCA` · `K-Means` · `Clustering Jerárquico` · `Pruebas de Hipótesis` · `MANOVA` · `Multicolinealidad` · `Bartlett y KMO` · `Dashboard Interactivo` · `Dash` · `Plotly` · `Seaborn` · `ggplot2` · `scikit-learn` · `Ciencia de Datos`
 
 ---
 

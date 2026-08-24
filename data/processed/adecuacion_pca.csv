@@ -1,4 +1,4 @@
 prueba,estadistico,valor,gl,p_valor,interpretacion
-Esfericidad de Bartlett,chi2,4967.91,45.0,0.0,La matriz de correlacion difiere de la identidad: el PCA es pertinente
-Determinante de R,|R|,4.81e-08,,,"Cercano a 0 indica multicolinealidad, condicion favorable al PCA"
-KMO global,KMO,0.84,,,Muy bueno
+Esfericidad de Bartlett,chi2,701.92,3.0,8.041120858516623e-152,La matriz de correlacion difiere de la identidad: el PCA es pertinente
+Determinante de R,|R|,0.09423,,,"Cercano a 0 indica multicolinealidad, condicion favorable al PCA"
+KMO global,KMO,0.4295,,,Inaceptable - no concluyente: el indice no es interpretable con solo 3 variables

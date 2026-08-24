@@ -2,6 +2,6 @@
 "n_clientes",300
 "n_variables_modelo",3
 "componentes_retenidas",2
-"varianza_acumulada_pct",98.19
+"varianza_acumulada_pct",98.39
 "k_optimo",4
-"silueta_media",0.4706
+"silueta_media",0.4836

@@ -1,5 +1,5 @@
 cluster,etiqueta,indice_tamano,indice_calidad
-0,"C0: consumidor pequeno, red confiable",-0.608,0.608
-1,"C1: consumidor pequeno, red degradada",-0.599,-0.922
-2,"C2: gran consumidor, red degradada",0.834,-0.967
-3,"C3: gran consumidor, red confiable",0.589,0.578
+0,"C0: consumidor pequeno, red degradada",-0.71,-1.182
+1,"C1: gran consumidor, red confiable",0.868,0.542
+2,"C2: gran consumidor, red degradada",1.193,-1.319
+3,"C3: consumidor pequeno, red confiable",-0.829,0.706
