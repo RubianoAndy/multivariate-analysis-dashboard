@@ -201,10 +201,10 @@ sidebar = html.Div(
         ),
     ],
     style={
-        'width': SIDEBAR_WIDTH, 'minWidth': SIDEBAR_WIDTH,
+        # flexShrink 0 evita que el lienzo, al crecer, le robe ancho.
+        'width': SIDEBAR_WIDTH, 'minWidth': SIDEBAR_WIDTH, 'flexShrink': '0',
         'backgroundColor': SIDEBAR_BG, 'display': 'flex', 'flexDirection': 'column',
-        'height': '100vh', 'position': 'fixed', 'top': '0', 'left': '0',
-        'zIndex': '100', 'overflowY': 'auto', 'overflowX': 'hidden',
+        'height': '100%', 'overflowY': 'auto', 'overflowX': 'hidden',
         'fontFamily': FONT, 'boxSizing': 'border-box',
     },
 )
@@ -226,6 +226,7 @@ encabezado = html.Div(
         'backgroundColor': CARD_BG, 'padding': '20px 30px',
         'borderBottom': f'1px solid {CARD_BORDER}',
         'boxShadow': '0 1px 4px rgba(0,0,0,0.05)', 'fontFamily': FONT,
+        'position': 'sticky', 'top': '0', 'zIndex': '20',
     },
 )
 
@@ -290,8 +291,15 @@ lienzo = html.Div(
                 kpi_card('⚡', '', 'Consumo agregado', card_id='kpi-consumo',
                          hint='Suma del consumo mensual de los clientes filtrados'),
             ],
-            style={'display': 'flex', 'gap': '14px', 'marginBottom': '18px',
-                   'flexWrap': 'wrap'},
+            # Rejilla en vez de flex con envoltura: con cinco tarjetas flexibles
+            # el navegador acaba bajando una sola a la linea siguiente, que
+            # entonces ocupa todo el ancho y descuadra la fila. auto-fit reparte
+            # columnas iguales y reduce su numero solo cuando de verdad no caben.
+            style={
+                'display': 'grid',
+                'gridTemplateColumns': 'repeat(auto-fit, minmax(150px, 1fr))',
+                'gap': '14px', 'marginBottom': '18px',
+            },
         ),
 
         # --- Plano principal y varianza --------------------------------------
@@ -376,13 +384,20 @@ lienzo = html.Div(
 layout = html.Div(
     [
         sidebar,
+        # El scroll vive aqui, no en el documento: por eso la barra lateral no
+        # necesita position fixed y el encabezado puede quedarse pegado arriba.
         html.Div(
             [encabezado, lienzo],
+            id='lienzo-principal',
             style={
-                'marginLeft': SIDEBAR_WIDTH, 'backgroundColor': MAIN_BG,
-                'minHeight': '100vh', 'fontFamily': FONT,
+                'flex': '1', 'height': '100%', 'overflowY': 'auto',
+                'overflowX': 'hidden', 'backgroundColor': MAIN_BG,
+                'fontFamily': FONT,
             },
         ),
     ],
-    style={'fontFamily': FONT},
+    style={
+        'display': 'flex', 'height': '100%', 'overflow': 'hidden',
+        'fontFamily': FONT,
+    },
 )

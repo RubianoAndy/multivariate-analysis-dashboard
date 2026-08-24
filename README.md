@@ -250,6 +250,12 @@ Tres lecturas que sostiene la evidencia:
 **Vista general** — indicadores, plano de componentes con las cargas superpuestas y varianza explicada. La barra lateral filtra por sector y región, ajusta *k* y permite colorear el plano por grupo descubierto, sector declarado o región, que es la forma directa de comprobar si la segmentación reproduce lo que ya se sabía o aporta algo nuevo. Bajo los filtros, la nota metodológica deja a la vista por qué el modelo usa tres variables y no diez.
 
 <div align="center">
+    <img src="public/assets/images/screenshots/Dashboard_scroll.png" width="880" alt="El dashboard desplazado: la barra lateral y el encabezado permanecen fijos">
+</div>
+
+**La página no se desplaza: lo hace el lienzo.** El dashboard ocupa exactamente la altura de la ventana y se reparte en dos columnas de altura completa; el scroll vive dentro de la derecha. Así la barra lateral —con sus filtros y la firma— queda siempre entera y a mano, y el encabezado se mantiene pegado arriba: da igual a qué altura del análisis se esté, los controles y el título nunca se pierden de vista. La alternativa, dejar crecer el documento, obliga a subir hasta el principio cada vez que se quiere cambiar un filtro.
+
+<div align="center">
     <img src="public/assets/images/screenshots/Dashboard_autor.png" width="470" alt="Ficha del autor en la barra lateral del dashboard">
 </div>
 
@@ -265,7 +271,7 @@ Tres lecturas que sostiene la evidencia:
     <img src="public/assets/images/screenshots/Dashboard_2.png" width="880" alt="Vista completa del dashboard">
 </div>
 
-**Vista completa** — bajo el plano principal: cargas, perfiles en z, coordenadas paralelas, composición por sector y región, la matriz de correlaciones que justifica la selección de variables y la tabla de perfiles.
+**Vista completa** — todo el lienzo desenrollado en una sola imagen: bajo el plano principal quedan las cargas, los perfiles en z, las coordenadas paralelas, la composición por sector y región, la matriz de correlaciones que justifica la selección de variables y la tabla de perfiles.
 
 ### Componentes principales y clustering (Python · Matplotlib)
 

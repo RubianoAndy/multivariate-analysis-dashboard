@@ -12,6 +12,31 @@
  * barra lateral, asi que sus reglas no pueden colgar de .sidebar-dropdown.
  */
 
+/* --- Armazon de la aplicacion ----------------------------------------------
+ *
+ * El dashboard ocupa exactamente la altura de la ventana y NO deja crecer a la
+ * pagina: la barra lateral se mantiene completa de arriba abajo y es el lienzo
+ * de la derecha el que se desplaza por dentro. Sin esto el documento crece
+ * hasta los 2400 px del contenido, la barra lateral -que mide una pantalla- se
+ * queda flotando en la parte superior y debajo de ella aparece una franja
+ * vacia.
+ *
+ * Dash no normaliza el <body>, que conserva su margen por defecto de 8 px, asi
+ * que hay que anularlo aqui o quedaria un borde blanco alrededor de todo.
+ */
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Contenedor que Dash monta entre el <body> y el layout. */
+#react-entry-point {
+  height: 100%;
+}
+
 /* --- Control cerrado -------------------------------------------------------- */
 .sidebar-dropdown.dash-dropdown {
   background-color: #01376B;
