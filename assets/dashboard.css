@@ -1,0 +1,113 @@
+/* Estilos de los controles de la barra lateral.
+ *
+ * Dash sirve automaticamente todo lo que encuentre en ``assets/`` -de ahi el
+ * nombre de la carpeta-, y esta hoja existe porque la prop ``style`` de
+ * ``dcc.Dropdown`` ya no basta: en Dash 4 el componente no la vuelca como
+ * atributo inline del control, sino que la reparte entre sus partes internas.
+ * El efecto practico es que el ``color: #FFFFFF`` pensado para el fondo azul
+ * oscuro se aplicaba sobre el fondo blanco por defecto y la seleccion quedaba
+ * en blanco sobre blanco, ilegible. Aqui se estilan las partes por su clase.
+ *
+ * El desplegable abierto se monta en un portal al final del <body>, fuera de la
+ * barra lateral, asi que sus reglas no pueden colgar de .sidebar-dropdown.
+ */
+
+/* --- Control cerrado -------------------------------------------------------- */
+.sidebar-dropdown.dash-dropdown {
+  background-color: #01376B;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 6px;
+  font-size: 12px;
+  min-height: 34px;
+}
+
+.sidebar-dropdown.dash-dropdown:hover {
+  border-color: rgba(255, 255, 255, 0.34);
+}
+
+.sidebar-dropdown .dash-dropdown-value,
+.sidebar-dropdown .dash-dropdown-value-item,
+.sidebar-dropdown .dash-dropdown-value-item span {
+  color: #FFFFFF;
+}
+
+/* Cada valor seleccionado va en una pastilla, para que se distinga del resto
+   cuando hay varios sectores elegidos a la vez. */
+.sidebar-dropdown .dash-dropdown-value-item {
+  background-color: rgba(255, 255, 255, 0.14);
+  border-radius: 4px;
+  padding: 1px 7px;
+  margin-right: 4px;
+}
+
+.sidebar-dropdown .dash-dropdown-placeholder {
+  color: #7A99B8;
+}
+
+.sidebar-dropdown .dash-dropdown-clear,
+.sidebar-dropdown .dash-dropdown-trigger-icon {
+  color: #7A99B8;
+}
+
+.sidebar-dropdown .dash-dropdown-clear:hover {
+  color: #FFCD00;
+}
+
+/* --- Boton de limpiar filtros ---------------------------------------------- */
+#btn-clear:hover {
+  border-color: #FFCD00 !important;
+  color: #FFCD00 !important;
+}
+
+/* --- Deslizador de k -------------------------------------------------------- */
+#filter-k .rc-slider-track {
+  background-color: #FFCD00;
+}
+
+#filter-k .rc-slider-rail {
+  background-color: rgba(255, 255, 255, 0.18);
+}
+
+#filter-k .rc-slider-handle {
+  border-color: #FFCD00;
+  background-color: #FFCD00;
+  opacity: 1;
+}
+
+#filter-k .rc-slider-handle:hover,
+#filter-k .rc-slider-handle:focus {
+  box-shadow: 0 0 0 4px rgba(255, 205, 0, 0.25);
+}
+
+#filter-k .rc-slider-dot {
+  background-color: #01376B;
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+#filter-k .rc-slider-dot-active {
+  border-color: #FFCD00;
+}
+
+/* --- Selector de color del plano ------------------------------------------- */
+#filter-color input[type="radio"] {
+  accent-color: #FFCD00;
+}
+
+/* --- Barra de desplazamiento de la barra lateral --------------------------- */
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(122, 153, 184, 0.45);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(122, 153, 184, 0.7);
+}

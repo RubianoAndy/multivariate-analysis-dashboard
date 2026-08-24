@@ -1,0 +1,3 @@
+prueba,variable,grupo_1,n_1,media_1,grupo_2,n_2,media_2,diferencia,estadistico_t,p_valor,d_de_Cohen,decision_alpha_0.05
+t de Welch (muestra completa),consumo_kwh,Caribe,98,1944.562,Andina,145,2064.334,-119.772,-0.2606,0.7946765567286527,-0.034,No se rechaza H0
+t de Welch (solo sector Residencial),log(consumo_kwh),Caribe,50,4.941,Andina,77,4.771,0.17,1.3057,0.19535857309018978,0.254,No se rechaza H0

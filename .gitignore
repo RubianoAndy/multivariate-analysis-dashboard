@@ -1,5 +1,6 @@
 # ---- Python ----
 .venv/
+venv/
 __pycache__/
 *.pyc
 *.pyo
@@ -12,6 +13,9 @@ __pycache__/
 
 # ---- VS Code ----
 .vscode/
+
+# ---- Capturas temporales del navegador de pruebas ----
+.playwright-mcp/
 
 # ---- Sistema operativo ----
 Thumbs.db

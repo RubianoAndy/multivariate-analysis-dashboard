@@ -1,0 +1,10 @@
+componente,autovalor,varianza_explicada_pct,varianza_acumulada_pct,criterio_kaiser
+PC1,5.6627,62.71,62.71,Retener
+PC2,2.276,25.2,87.91,Retener
+PC3,0.6581,7.29,95.2,Descartar
+PC4,0.2662,2.95,98.15,Descartar
+PC5,0.0709,0.79,98.94,Descartar
+PC6,0.053,0.59,99.52,Descartar
+PC7,0.0374,0.41,99.94,Descartar
+PC8,0.0053,0.06,99.99,Descartar
+PC9,0.0005,0.01,100.0,Descartar

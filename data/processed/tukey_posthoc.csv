@@ -1,0 +1,4 @@
+grupo_1,grupo_2,dif_medias_log,p_ajustado,ic95_inferior,ic95_superior,significativo,razon_de_medias
+Comercial,Industrial,1.8228,0.0,1.5811,2.0645,True,6.19
+Comercial,Residencial,-2.1028,0.0,-2.2925,-1.913,True,0.12
+Industrial,Residencial,-3.9256,0.0,-4.1458,-3.7054,True,0.02

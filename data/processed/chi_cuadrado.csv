@@ -1,0 +1,2 @@
+prueba,variables,gl,estadistico_chi2,p_valor,V_de_Cramer,frec_esperada_minima,decision_alpha_0.05
+Chi-cuadrado de independencia,sector x region,4,4.0123,0.40434795478529145,0.0818,10.83,No se rechaza H0

@@ -1,0 +1,5 @@
+cluster,consumo_kwh,costo_miles_cop,area_m2,potencia_instalada_kw,num_equipos,horas_operacion,temperatura_c,factor_potencia,antiguedad_anios,interrupciones_mes
+0,-0.507,-0.512,-0.544,-0.55,-0.536,-0.731,0.021,-0.972,1.073,0.752
+1,0.486,0.493,0.609,0.616,0.592,0.861,-0.022,0.598,-0.676,-0.479
+2,-0.515,-0.52,-0.565,-0.561,-0.563,-0.702,-0.076,0.789,-0.72,-0.426
+3,0.913,0.919,0.866,0.854,0.878,0.982,0.156,-1.201,1.056,0.593

@@ -1,0 +1,11 @@
+metrica,valor
+n_clientes,300
+n_variables_modelo,9
+variable_excluida_por_kmo,temperatura_c
+componentes_retenidas,2
+varianza_acumulada_pct,87.91
+k_optimo,4
+silueta_media,0.4681
+calinski_harabasz,335.5
+davies_bouldin,0.7323
+ari_kmeans_vs_ward,0.7911

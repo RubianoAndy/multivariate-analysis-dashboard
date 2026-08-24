@@ -1,0 +1,5 @@
+prueba,estadistico,valor,F_aprox,gl_numerador,gl_denominador,p_valor,decision_alpha_0.05
+MANOVA (efecto del sector),Wilks' lambda,0.0577,91.1039,20.0,576.0,1.491163357403323e-163,Se rechaza H0
+MANOVA (efecto del sector),Pillai's trace,1.0134,29.6824,20.0,578.0,2.1179310075249442e-75,Se rechaza H0
+MANOVA (efecto del sector),Hotelling-Lawley trace,15.1018,216.8534,20.0,483.5,1.3648978094179931e-226,Se rechaza H0
+MANOVA (efecto del sector),Roy's greatest root,15.0198,434.0736,10.0,289.0,1.272598360420284e-167,Se rechaza H0
