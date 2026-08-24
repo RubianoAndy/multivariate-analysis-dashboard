@@ -27,7 +27,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 from dataset import VARIABLES_NUMERICAS
-from pca_clustering import VARIABLES_LOG, preparar_matriz
+from pca_clustering import VARIABLES_LOG, VARIABLES_MODELO, VARIABLE_EXCLUIDA
 from estilo import (
     aplicar_estilo_matplotlib,
     AZUL_UNISALLE, TEXTO, TEXTO_SUAVE, BORDE,
@@ -130,29 +130,18 @@ def heatmap_correlacion(df, ruta):
 # 2. MATRIZ DE DISPERSION POR CLUSTER
 # -----------------------------------------------------------------------------
 def matriz_dispersion(df, ruta):
-    """PairGrid de las variables representativas de cada bloque, por cluster.
+    """PairGrid de las tres variables del modelo, coloreado por cluster.
 
-    Se eligen cinco variables -dos de tamano, tres de estado de red- en vez de
-    las nueve: una matriz 9x9 son 81 paneles ilegibles, y las variables del
-    mismo bloque son casi redundantes entre si.
+    Con tres variables la matriz cabe entera -seis paneles- y se puede leer
+    panel por panel, que es justamente lo que se perdia con nueve.
     """
-    seleccion = [
-        "consumo_kwh",
-        "potencia_instalada_kw",
-        "factor_potencia",
-        "antiguedad_anios",
-        "interrupciones_mes",
-    ]
-    datos = df[seleccion + ["cluster"]].copy()
-    datos["consumo_kwh"] = np.log(datos["consumo_kwh"])
-    datos["potencia_instalada_kw"] = np.log(datos["potencia_instalada_kw"])
+    datos = df[VARIABLES_MODELO + ["cluster"]].copy()
+    for col in [c for c in VARIABLES_LOG if c in VARIABLES_MODELO]:
+        datos[col] = np.log(datos[col])
     datos = datos.rename(
         columns={
-            "consumo_kwh": "log Consumo",
-            "potencia_instalada_kw": "log Potencia",
-            "factor_potencia": "F. potencia",
-            "antiguedad_anios": "Antiguedad",
-            "interrupciones_mes": "Interrupciones",
+            c: (f"log {ETIQUETAS_CORTAS[c]}" if c in VARIABLES_LOG else ETIQUETAS_CORTAS[c])
+            for c in VARIABLES_MODELO
         }
     )
     datos["Cluster"] = datos["cluster"].map(lambda c: f"C{c}")
@@ -162,7 +151,7 @@ def matriz_dispersion(df, ruta):
               for c in sorted(df["cluster"].unique())}
 
     g = sns.PairGrid(datos, hue="Cluster", hue_order=sorted(paleta), palette=paleta,
-                     diag_sharey=False, height=1.75, corner=True)
+                     diag_sharey=False, height=2.15, corner=True)
     g.map_lower(sns.scatterplot, s=16, alpha=0.7, edgecolor="none")
     g.map_diag(sns.kdeplot, fill=True, alpha=0.45, linewidth=1.2)
     g.add_legend(title="Cluster", bbox_to_anchor=(0.97, 0.72), loc="upper right")
@@ -175,9 +164,10 @@ def matriz_dispersion(df, ruta):
 
     top = titulo(
         g.figure,
-        "Matriz de dispersion de las variables representativas, por cluster",
-        "Los cuatro grupos se separan limpiamente en los pares que cruzan tamano "
-        "con estado de la red, no dentro de un mismo bloque.",
+        "Matriz de dispersion de las tres variables del modelo, por cluster",
+        "Los cuatro grupos se separan en el par que cruza consumo con estado de la red; "
+        "dentro del par factor de potencia - antiguedad se alinean sobre una recta, que es "
+        "la redundancia que el PCA comprime en una sola componente.",
     )
     g.figure.subplots_adjust(top=top)
     g.figure.savefig(ruta)
@@ -190,17 +180,28 @@ def matriz_dispersion(df, ruta):
 def clustermap(df, ruta):
     """Mapa de calor de los datos estandarizados con dendrogramas en los margenes.
 
-    Reordena clientes y variables por similitud, de modo que la estructura de
-    bloques aparece sin imponerla: las bandas horizontales son los grupos y las
-    columnas se agrupan solas en tamano frente a estado de la red.
+    Se dibuja sobre las **nueve variables candidatas**, no sobre las tres que
+    acabaron en el modelo: esta figura es justamente la evidencia de por que
+    sobraban seis. El dendrograma superior las agrupa solo, sin que nadie le
+    diga cuales miden lo mismo, y reproduce los bloques que la Fase 2 uso para
+    seleccionar. Dibujarla con las tres finales seria enseñar la conclusion y
+    esconder el argumento.
+
+    Las bandas horizontales son los grupos de clientes; la franja de color de la
+    izquierda, la asignacion de K-Means.
     """
-    X, nombres, _ = preparar_matriz(df)
+    candidatas = [v for v in VARIABLES_NUMERICAS if v != VARIABLE_EXCLUIDA]
+    datos = df[candidatas].copy()
+    for col in [c for c in VARIABLES_LOG if c in candidatas]:
+        datos[col] = np.log(datos[col])
+    datos = (datos - datos.mean()) / datos.std()
+
     matriz = pd.DataFrame(
-        X,
+        datos.values,
         columns=[
-            f"log {ETIQUETAS_CORTAS[n.replace('log_', '')]}" if n.startswith("log_")
-            else ETIQUETAS_CORTAS[n]
-            for n in nombres
+            (f"log {ETIQUETAS_CORTAS[c]}" if c in VARIABLES_LOG else ETIQUETAS_CORTAS[c])
+            + ("  *" if c in VARIABLES_MODELO else "")
+            for c in candidatas
         ],
     )
 
@@ -232,8 +233,9 @@ def clustermap(df, ruta):
     top = titulo(
         g.figure,
         "Clustermap: clientes y variables reordenados por similitud",
-        "La franja de color a la izquierda es el cluster asignado por K-Means; coincide "
-        "con los bloques que el dendrograma forma por su cuenta.",
+        "El dendrograma superior agrupa las variables sin ayuda y reproduce los bloques "
+        "que motivaron la seleccion. Las marcadas con * son las tres que entran al modelo; "
+        "la franja de color de la izquierda es el cluster asignado por K-Means.",
     )
     # clustermap monta sus ejes sobre un gridspec propio, que ignora tight_layout;
     # hay que reducirle el techo a mano para dejar sitio al titulo. La barra de
@@ -300,7 +302,9 @@ def distribuciones_cluster(df, ruta):
         ("consumo_kwh", "Consumo mensual (kWh, escala log)", True),
         ("factor_potencia", "Factor de potencia", False),
         ("antiguedad_anios", "Antiguedad de la instalacion (anios)", False),
-        ("interrupciones_mes", "Interrupciones al mes", False),
+        # Cuarta variable de control: no entro al modelo, y aun asi separa los
+        # grupos. Es una comprobacion de que la particion no depende de ella.
+        ("interrupciones_mes", "Interrupciones al mes (fuera del modelo)", False),
     ]
     orden = sorted(df["cluster"].unique())
     paleta = [COLOR_CLUSTER[c % len(COLOR_CLUSTER)] for c in orden]

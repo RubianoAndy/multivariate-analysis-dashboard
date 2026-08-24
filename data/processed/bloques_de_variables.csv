@@ -1,0 +1,10 @@
+variable,bloque,n_variables_del_bloque,representante_del_bloque,r_medio_en_su_bloque
+consumo_kwh,1,6,consumo_kwh,0.9592
+costo_miles_cop,1,6,consumo_kwh,0.9584
+potencia_instalada_kw,1,6,consumo_kwh,0.9384
+area_m2,1,6,consumo_kwh,0.9356
+num_equipos,1,6,consumo_kwh,0.9234
+horas_operacion,1,6,consumo_kwh,0.8804
+factor_potencia,2,2,factor_potencia,0.9694
+antiguedad_anios,2,2,factor_potencia,0.9694
+interrupciones_mes,3,1,interrupciones_mes,1.0

@@ -21,7 +21,7 @@ from src.theme import (
 )
 from src.data import (
     analizar, MINIMO_CLIENTES, ETIQUETAS_CORTAS, VARIABLES_LOG,
-    VARIABLES_NUMERICAS,
+    VARIABLES_NUMERICAS, VARIABLES_MODELO, VARIABLE_EXCLUIDA, eje_componente,
 )
 
 GRID = '#F1F3F8'
@@ -124,6 +124,7 @@ def fig_biplot(resultado, criterio):
         )
 
     varianza = resultado['varianza']
+    cargas_pc = resultado['cargas']
     fig.update_layout(
         # Margen inferior holgado: la leyenda va debajo del eje y con cuatro
         # grupos de nombre largo ocupa dos filas.
@@ -133,10 +134,8 @@ def fig_biplot(resultado, criterio):
             'Plano de las dos primeras componentes',
             'Cada punto es un cliente; las flechas indican hacia donde crece cada variable',
         ),
-        xaxis_title=f"PC1 - tamano de la instalacion "
-                    f"({varianza.loc[0, 'varianza_explicada_pct']:.1f} %)",
-        yaxis_title=f"PC2 - deterioro de la red "
-                    f"({varianza.loc[1, 'varianza_explicada_pct']:.1f} %)",
+        xaxis_title=eje_componente(cargas_pc, varianza, 'PC1'),
+        yaxis_title=eje_componente(cargas_pc, varianza, 'PC2'),
         legend=dict(title='', orientation='h', yanchor='top', y=-0.13,
                     x=0, font=dict(size=10.5)),
     )
@@ -148,7 +147,7 @@ def fig_biplot(resultado, criterio):
 def fig_scree(resultado):
     """Varianza explicada por componente y acumulada, con el corte de Kaiser."""
     varianza = resultado['varianza']
-    retenidas = int((varianza['criterio_kaiser'] == 'Retener').sum())
+    retenidas = int((varianza['criterio_varianza_acumulada'] == 'Retener').sum())
 
     fig = go.Figure()
     fig.add_bar(
@@ -173,7 +172,8 @@ def fig_scree(resultado):
         margin=dict(l=55, r=55, t=58, b=50),
         title=title_cfg(
             'Varianza explicada',
-            f'Criterio de Kaiser: se retienen {retenidas} componentes (autovalor > 1)',
+            f'Se retienen {retenidas} componentes: las que acumulan mas del 80 % '
+            f'de la varianza',
         ),
         xaxis_title='Componente principal',
         yaxis=dict(title='Varianza explicada (%)', gridcolor=GRID),
@@ -256,9 +256,8 @@ def fig_paralelas(resultado):
     variables = resultado['variables']
 
     matriz = datos[variables].copy()
-    for col in VARIABLES_LOG:
-        if col in matriz.columns:
-            matriz[col] = np.log(matriz[col])
+    for col in [c for c in VARIABLES_LOG if c in matriz.columns]:
+        matriz[col] = np.log(matriz[col])
     desv = matriz.std().replace(0, np.nan)
     matriz = ((matriz - matriz.mean()) / desv).fillna(0).clip(-3, 3)
 
@@ -329,20 +328,26 @@ def fig_sunburst(resultado):
 
 
 def fig_correlacion(resultado):
-    """Matriz de correlacion de las variables del modelo, triangular inferior."""
+    """Matriz de correlacion de todas las variables, triangular inferior.
+
+    Se dibuja sobre las diez variables numericas y no solo sobre las tres del
+    modelo: es la evidencia de por que sobran siete. El bloque de seis
+    correlaciones por encima de 0.90 en la esquina superior izquierda es lo que
+    justifica quedarse con una sola representante.
+    """
     datos = resultado['datos']
-    variables = resultado['variables']
+    variables = [v for v in VARIABLES_NUMERICAS if v != VARIABLE_EXCLUIDA]
 
     matriz = datos[variables].copy()
-    for col in VARIABLES_LOG:
-        if col in matriz.columns:
-            matriz[col] = np.log(matriz[col])
+    for col in [c for c in VARIABLES_LOG if c in matriz.columns]:
+        matriz[col] = np.log(matriz[col])
     R = matriz.corr()
 
     # Se oculta el triangulo superior: es simetrico y solo anade ruido visual.
     z = R.values.astype(float).copy()
     z[np.triu_indices_from(z, k=1)] = np.nan
-    etiquetas = [etiqueta(v) for v in variables]
+    etiquetas = [etiqueta(v) + ('  *' if v in VARIABLES_MODELO else '')
+                 for v in variables]
 
     fig = go.Figure(
         go.Heatmap(
@@ -359,8 +364,9 @@ def fig_correlacion(resultado):
         **{k: v for k, v in BASE_LAYOUT.items() if k != 'margin'},
         margin=dict(l=110, r=20, t=58, b=95),
         title=title_cfg(
-            'Correlaciones entre las variables del modelo',
-            'Dos bloques: las variables de tamano y las de estado de la red',
+            'Por que el modelo usa solo tres variables',
+            'Seis variables forman un bloque con correlaciones sobre 0.90: miden lo mismo. '
+            'Las marcadas con * son las que entran al modelo',
         ),
     )
     fig.update_xaxes(tickangle=-38, tickfont=dict(size=9.5))

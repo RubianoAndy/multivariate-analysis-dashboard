@@ -77,6 +77,44 @@ ETIQUETAS_CORTAS = {
     "interrupciones_mes": "Interrupciones",
 }
 
+# Concepto que mide cada variable. Sirve para poner nombre a las componentes
+# principales a partir de su carga dominante, en vez de rotularlas a mano: al
+# filtrar en el dashboard las componentes cambian de orden, y un titulo fijo
+# acabaria mintiendo.
+TEMA_VARIABLE = {
+    "consumo_kwh": "escala de consumo",
+    "costo_miles_cop": "escala de consumo",
+    "area_m2": "tamano de la instalacion",
+    "potencia_instalada_kw": "tamano de la instalacion",
+    "num_equipos": "tamano de la instalacion",
+    "horas_operacion": "intensidad de uso",
+    "temperatura_c": "clima del municipio",
+    "factor_potencia": "calidad de la red",
+    "antiguedad_anios": "calidad de la red",
+    "interrupciones_mes": "calidad de la red",
+}
+
+
+def nombrar_componente(cargas, componente):
+    """Describe una componente por el concepto de su carga dominante.
+
+    Parametros
+    ----------
+    cargas : pandas.DataFrame
+        Matriz de cargas, con las variables en el indice (admite el prefijo
+        ``log_``) y las componentes en las columnas.
+    componente : str
+        Nombre de la columna, por ejemplo ``"PC1"``.
+
+    Retorna
+    -------
+    str
+        Concepto asociado, o el nombre de la variable dominante si no esta en
+        ``TEMA_VARIABLE``.
+    """
+    dominante = cargas[componente].abs().idxmax().replace("log_", "")
+    return TEMA_VARIABLE.get(dominante, ETIQUETAS_CORTAS.get(dominante, dominante))
+
 
 def aplicar_estilo_matplotlib():
     """Fija los rcParams comunes a todas las figuras estaticas."""

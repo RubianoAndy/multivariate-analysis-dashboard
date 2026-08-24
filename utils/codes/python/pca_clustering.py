@@ -1,42 +1,67 @@
 """Actividad 6 - Fase 2: analisis de componentes principales y clustering.
 
-Nucleo analitico de la actividad. Se ejecuta en cuatro pasos:
+Nucleo analitico de la actividad. Se ejecuta en cinco pasos:
 
-1. **Preparacion.** Las seis variables de escala (consumo, costo, area,
-   potencia, equipos y horas) se transforman con logaritmo porque su
-   distribucion es multiplicativa y fuertemente asimetrica; un PCA sobre la
-   escala original quedaria dominado por los pocos clientes industriales
-   grandes. Despues se estandarizan: el PCA sobre matriz de covarianzas daria
-   todo el peso a las variables con unidades mas grandes, asi que se trabaja
-   sobre la matriz de correlaciones (media 0, desviacion 1).
+1. **Seleccion de variables.** El modelo no usa las diez variables numericas,
+   sino **tres**. Un analisis con diez columnas no es mas riguroso por tenerlas:
+   es mas dificil de leer, y aqui la mayoria son la misma informacion repetida.
+   La reduccion sigue dos filtros, ambos con evidencia detras:
 
-   La temperatura queda **fuera** del modelo. No es una decision estetica: el
-   indice KMO de la Fase 1 le asigno 0.456, por debajo del umbral 0.50 que
-   Kaiser considera inaceptable, porque no comparte factores comunes con el
-   resto -describe el clima del municipio, no al cliente-. Su efecto sobre el
-   consumo ya quedo cuantificado y aislado en la ANCOVA de la Fase 1, y la
-   variable ``region`` la conserva como atributo categorico para el analisis
-   posterior. Incluirla forzaria una tercera componente puramente geografica
-   que arrastraria al clustering hacia una particion por regiones.
+   * **KMO.** La temperatura queda fuera porque la Fase 1 le asigno un indice
+     de 0.456, bajo el umbral 0.50 que Kaiser considera inaceptable: describe
+     el clima del municipio, no al cliente, y no comparte factores comunes con
+     el resto. Su efecto ya quedo cuantificado y aislado en la ANCOVA, y la
+     variable ``region`` la conserva como atributo categorico. Incluirla
+     forzaria una componente puramente geografica que arrastraria al clustering
+     hacia una particion por regiones.
 
-2. **PCA.** Se extraen las nueve componentes, se reporta la varianza explicada,
-   la acumulada y el criterio de Kaiser (autovalor > 1), y se calculan las
-   cargas como ``componente x sqrt(autovalor)``, que son las correlaciones
-   entre cada variable original y cada componente.
+   * **Redundancia.** ``bloques_de_variables`` agrupa el resto por correlacion
+     absoluta y encuentra que seis de ellas -consumo, costo, area, potencia,
+     equipos y horas- forman un unico bloque con correlaciones por encima de
+     0.90: miden lo mismo, el tamano del cliente. Se conserva una representante,
+     ``consumo_kwh``, que ademas es la variable de negocio.
 
-3. **Seleccion de k.** El clustering se hace sobre las componentes retenidas
+   De las tres que describen la red se conservan ``factor_potencia`` y
+   ``antiguedad_anios``, y se descarta ``interrupciones_mes``, un conteo de
+   Poisson mucho mas ruidoso que comparte con ellas la mayor parte de su senal.
+   Las tres finales miden conceptos distintos -cuanto consume el cliente, con
+   que calidad electrica y desde hace cuanto-, aunque dos de ellas resulten
+   estar correlacionadas en esta poblacion: que las instalaciones viejas tengan
+   mal factor de potencia es un hallazgo del dominio, y comprimirlo en una sola
+   componente es exactamente el trabajo del PCA.
+
+2. **Preparacion.** ``consumo_kwh`` se transforma con logaritmo porque su
+   distribucion es multiplicativa y fuertemente asimetrica; sin esa
+   transformacion el analisis quedaria dominado por los pocos clientes
+   industriales grandes. Despues se estandarizan las tres: el PCA sobre matriz
+   de covarianzas daria todo el peso a la variable con unidades mas grandes,
+   asi que se trabaja sobre la matriz de correlaciones (media 0, desviacion 1).
+
+3. **PCA.** Se extraen las tres componentes, se reporta la varianza explicada y
+   la acumulada, y se calculan las cargas como ``componente x sqrt(autovalor)``,
+   que son las correlaciones entre cada variable original y cada componente.
+
+   Con tan pocas variables **el criterio de Kaiser deja de servir**. Sobre
+   matriz de correlaciones el autovalor medio vale 1 por construccion, de modo
+   que el umbral "autovalor > 1" equivale a "por encima del promedio": con tres
+   variables, la segunda componente se queda en 0.98 y quedaria descartada pese
+   a recoger un tercio de la informacion. Se usa el criterio de **varianza
+   acumulada del 80 %**, que retiene dos componentes (98.2 %), y el de Kaiser se
+   sigue reportando en la tabla para dejar visible la discrepancia.
+
+4. **Seleccion de k.** El clustering se hace sobre las componentes retenidas
    **estandarizadas**. Las puntuaciones crudas heredan la varianza del
-   autovalor (5.66 en PC1 frente a 2.28 en PC2), asi que la distancia euclidea
+   autovalor (1.97 en PC1 frente a 0.98 en PC2), asi que la distancia euclidea
    estaria dominada por la primera componente y K-Means acabaria partiendo a los
-   clientes solo por tamano, ignorando la segunda dimension. Igualar la escala
-   de las componentes retenidas hace que ambas pesen lo mismo en la distancia.
+   clientes solo por el estado de su red, ignorando cuanto consumen. Igualar la
+   escala de las componentes retenidas hace que ambas pesen lo mismo.
 
    Sobre ese espacio se recorre k = 2..8 evaluando inercia (metodo del codo),
    coeficiente de silueta, indice de Calinski-Harabasz y de Davies-Bouldin. El
    codo es ambiguo por construccion, asi que la decision se toma con la silueta
    y se contrasta con los otros dos indices.
 
-4. **Clustering.** K-Means con el k elegido y, de forma independiente,
+5. **Clustering.** K-Means con el k elegido y, de forma independiente,
    aglomerativo de Ward. Se comparan con tabla de contingencia y con el indice
    Rand ajustado: si dos algoritmos con logicas distintas llegan a la misma
    particion, la estructura es de los datos y no del metodo.
@@ -50,7 +75,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from scipy.cluster.hierarchy import dendrogram, linkage
+from scipy.cluster.hierarchy import dendrogram, linkage, fcluster
+from scipy.spatial.distance import squareform
 from sklearn.cluster import KMeans, AgglomerativeClustering
 from sklearn.decomposition import PCA
 from sklearn.metrics import (
@@ -67,6 +93,7 @@ from estilo import (
     aplicar_estilo_matplotlib,
     AZUL_UNISALLE, DORADO_UNISALLE, AZUL, ROJO, TEXTO, TEXTO_SUAVE,
     COLOR_SECTOR, ORDEN_SECTOR, COLOR_CLUSTER, ETIQUETAS_CORTAS,
+    nombrar_componente,
 )
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -79,6 +106,9 @@ for d in (PROCESSED_DIR, FIGURAS_DIR):
 SEED = 42
 K_RANGO = range(2, 9)
 
+# Porcentaje de varianza acumulada que deben alcanzar las componentes retenidas.
+UMBRAL_VARIANZA = 80.0
+
 # Variables cuyo proceso generador es multiplicativo: se analizan en logaritmo.
 VARIABLES_LOG = [
     "consumo_kwh",
@@ -89,23 +119,129 @@ VARIABLES_LOG = [
     "horas_operacion",
 ]
 
-# Espacio del modelo: las 10 variables menos la temperatura, excluida por su
-# KMO de 0.456 (ver el encabezado de este archivo y data/processed/kmo_por_variable.csv).
+# Excluida por adecuacion muestral: KMO = 0.456 (ver data/processed/kmo_por_variable.csv).
 VARIABLE_EXCLUIDA = "temperatura_c"
-VARIABLES_MODELO = [v for v in VARIABLES_NUMERICAS if v != VARIABLE_EXCLUIDA]
+
+# Espacio del modelo: tres variables, una por concepto. Ver el punto 1 del
+# encabezado y la tabla data/processed/seleccion_variables.csv, que documenta
+# que se hizo con cada una de las diez originales.
+VARIABLES_MODELO = ["consumo_kwh", "factor_potencia", "antiguedad_anios"]
+
+# Motivo por el que cada variable entra o sale, para la tabla de seleccion.
+MOTIVO_SELECCION = {
+    "consumo_kwh": ("Se conserva", "Representante del bloque de tamano y variable de negocio"),
+    "costo_miles_cop": ("Se descarta", "Redundante: correlacion > 0.90 con el consumo"),
+    "area_m2": ("Se descarta", "Redundante: correlacion > 0.90 con el consumo"),
+    "potencia_instalada_kw": ("Se descarta", "Redundante: correlacion > 0.90 con el consumo"),
+    "num_equipos": ("Se descarta", "Redundante: correlacion > 0.90 con el consumo"),
+    "horas_operacion": ("Se descarta", "Redundante: correlacion > 0.90 con el consumo"),
+    "temperatura_c": ("Se descarta", "KMO = 0.456, por debajo del umbral 0.50 de Kaiser"),
+    "factor_potencia": ("Se conserva", "Mide la calidad electrica de la instalacion"),
+    "antiguedad_anios": ("Se conserva", "Mide la edad de la instalacion"),
+    "interrupciones_mes": ("Se descarta", "Conteo de Poisson ruidoso; su senal ya esta en las otras dos"),
+}
 
 aplicar_estilo_matplotlib()
 
 
+def eje_componente(cargas, varianza, componente):
+    """Rotulo de un eje: nombre de la componente, su concepto y su varianza.
+
+    El concepto se deduce de la carga dominante en vez de escribirse a mano,
+    porque el orden de las componentes cambia segun las variables que entren en
+    el modelo -y en el dashboard, segun el filtro activo-.
+    """
+    fila = varianza.index[varianza["componente"] == componente][0]
+    pct = varianza.loc[fila, "varianza_explicada_pct"]
+    return f"{componente} - {nombrar_componente(cargas, componente)} ({pct:.1f} %)"
+
+
 # -----------------------------------------------------------------------------
-# 1. PREPARACION DE LA MATRIZ
+# 1. SELECCION DE VARIABLES
+# -----------------------------------------------------------------------------
+def bloques_de_variables(df, variables, n_bloques=3):
+    """Agrupa las variables por correlacion para descubrir cuales son redundantes.
+
+    Usa la distancia ``1 - |r|``: dos variables que miden lo mismo quedan a
+    distancia casi cero, con independencia del signo de su relacion. Sobre esa
+    matriz se aplica un agrupamiento jerarquico de enlace promedio y se corta en
+    ``n_bloques``. La representante de cada bloque es la variable con mayor
+    correlacion media dentro de el, es decir, la que mejor lo resume.
+
+    No decide por si sola el modelo -la eleccion final tambien atiende al
+    significado de cada variable-, pero deja documentado con numeros que seis de
+    las columnas eran la misma informacion repetida.
+
+    Retorna
+    -------
+    pandas.DataFrame
+        Una fila por variable con su bloque, la representante del bloque y su
+        correlacion media dentro de el.
+    """
+    datos = df[variables].copy()
+    for col in [c for c in variables if c in VARIABLES_LOG]:
+        datos[col] = np.log(datos[col])
+
+    R = datos.corr()
+    distancia = (1 - R.abs()).to_numpy(copy=True)
+    np.fill_diagonal(distancia, 0.0)
+    # squareform exige simetria exacta; el redondeo de coma flotante la rompe.
+    distancia = (distancia + distancia.T) / 2
+
+    enlace = linkage(squareform(distancia, checks=False), method="average")
+    etiquetas = fcluster(enlace, n_bloques, criterion="maxclust")
+
+    filas = []
+    for bloque in sorted(set(etiquetas)):
+        miembros = [v for v, b in zip(variables, etiquetas) if b == bloque]
+        correlacion_media = R.loc[miembros, miembros].abs().mean()
+        representante = correlacion_media.idxmax()
+        for v in miembros:
+            filas.append(
+                {
+                    "variable": v,
+                    "bloque": int(bloque),
+                    "n_variables_del_bloque": len(miembros),
+                    "representante_del_bloque": representante,
+                    "r_medio_en_su_bloque": round(float(correlacion_media[v]), 4),
+                }
+            )
+    return pd.DataFrame(filas).sort_values(["bloque", "r_medio_en_su_bloque"],
+                                           ascending=[True, False])
+
+
+def tabla_seleccion(df):
+    """Documenta, variable por variable, si entra en el modelo y por que."""
+    candidatas = [v for v in VARIABLES_NUMERICAS if v != VARIABLE_EXCLUIDA]
+    bloques = bloques_de_variables(df, candidatas).set_index("variable")
+
+    filas = []
+    for v in VARIABLES_NUMERICAS:
+        decision, motivo = MOTIVO_SELECCION[v]
+        filas.append(
+            {
+                "variable": v,
+                "decision": decision,
+                "motivo": motivo,
+                "bloque": int(bloques.loc[v, "bloque"]) if v in bloques.index else None,
+                "representante_del_bloque": (
+                    bloques.loc[v, "representante_del_bloque"] if v in bloques.index else None
+                ),
+                "en_el_modelo": v in VARIABLES_MODELO,
+            }
+        )
+    return pd.DataFrame(filas)
+
+
+# -----------------------------------------------------------------------------
+# 2. PREPARACION DE LA MATRIZ
 # -----------------------------------------------------------------------------
 def preparar_matriz(df):
     """Devuelve la matriz estandarizada lista para el PCA y el escalador usado.
 
     Retorna
     -------
-    X : ndarray (n, 9)
+    X : ndarray (n, 3)
         Matriz estandarizada.
     nombres : list[str]
         Nombre de cada columna, con el prefijo ``log_`` donde aplique.
@@ -113,7 +249,9 @@ def preparar_matriz(df):
         Necesario para devolver los centroides a unidades interpretables.
     """
     datos = df[VARIABLES_MODELO].copy()
-    for col in VARIABLES_LOG:
+    # VARIABLES_LOG lista todas las columnas de escala del conjunto, no solo las
+    # del modelo: hay que intersecar para no buscar una que ya se descarto.
+    for col in [c for c in VARIABLES_LOG if c in VARIABLES_MODELO]:
         datos[col] = np.log(datos[col])
 
     nombres = [f"log_{c}" if c in VARIABLES_LOG else c for c in VARIABLES_MODELO]
@@ -123,7 +261,7 @@ def preparar_matriz(df):
 
 
 # -----------------------------------------------------------------------------
-# 2. ANALISIS DE COMPONENTES PRINCIPALES
+# 3. ANALISIS DE COMPONENTES PRINCIPALES
 # -----------------------------------------------------------------------------
 def ejecutar_pca(X, nombres):
     """Ajusta el PCA completo y devuelve varianza, cargas y puntuaciones."""
@@ -142,6 +280,15 @@ def ejecutar_pca(X, nombres):
             "criterio_kaiser": np.where(autovalores > 1, "Retener", "Descartar"),
         }
     )
+    # Criterio efectivo: la primera componente que alcanza el umbral acumulado.
+    # Con tres variables Kaiser es demasiado exigente (ver punto 3 del encabezado).
+    n_retenidas = int(
+        (varianza["varianza_acumulada_pct"] < UMBRAL_VARIANZA).sum() + 1
+    )
+    n_retenidas = min(max(n_retenidas, 2), len(autovalores))
+    varianza["criterio_varianza_acumulada"] = [
+        "Retener" if i < n_retenidas else "Descartar" for i in range(len(autovalores))
+    ]
 
     # Cargas = correlacion variable-componente. Se prefieren a los autovectores
     # crudos porque estan en [-1, 1] y son directamente interpretables.
@@ -208,7 +355,7 @@ def figura_scree(varianza, ruta):
     plt.close(fig)
 
 
-def figura_biplot(scores, cargas, df, ruta):
+def figura_biplot(scores, cargas, df, ruta, varianza):
     """Biplot PC1-PC2: observaciones por sector y vectores de carga."""
     fig, ax = plt.subplots(figsize=(9.5, 7.5))
 
@@ -283,8 +430,8 @@ def figura_biplot(scores, cargas, df, ruta):
     ax.set_xlim(min(xs) - 0.6, max(xs) + 0.6)
     ax.set_ylim(min(ys) - 0.6, max(ys) + 1.1)
 
-    ax.set_xlabel("PC1 - tamano de la instalacion")
-    ax.set_ylabel("PC2 - deterioro de la red")
+    ax.set_xlabel(eje_componente(cargas, varianza, "PC1"))
+    ax.set_ylabel(eje_componente(cargas, varianza, "PC2"))
     ax.set_title(
         "Biplot: clientes y variables en el plano de las dos primeras componentes",
         loc="left",
@@ -296,7 +443,7 @@ def figura_biplot(scores, cargas, df, ruta):
 
 
 # -----------------------------------------------------------------------------
-# 3. SELECCION DEL NUMERO DE GRUPOS
+# 4. SELECCION DEL NUMERO DE GRUPOS
 # -----------------------------------------------------------------------------
 def evaluar_k(Z, rango=K_RANGO):
     """Recorre valores de k y calcula cuatro indices de validacion interna."""
@@ -386,7 +533,7 @@ def figura_silueta(Z, etiquetas, ruta):
 
 
 # -----------------------------------------------------------------------------
-# 4. CLUSTERING Y PERFILES
+# 5. CLUSTERING Y PERFILES
 # -----------------------------------------------------------------------------
 def figura_dendrograma(Z, k, ruta):
     """Dendrograma de Ward, cortado a la altura que produce k grupos."""
@@ -424,7 +571,7 @@ def figura_dendrograma(Z, k, ruta):
     return enlace, corte
 
 
-def figura_clusters(scores, etiquetas, centroides_pca, ruta):
+def figura_clusters(scores, etiquetas, centroides_pca, ruta, cargas, varianza):
     """Plano PC1-PC2 coloreado por cluster, con centroides marcados."""
     fig, ax = plt.subplots(figsize=(9, 6.8))
     k = len(np.unique(etiquetas))
@@ -444,8 +591,8 @@ def figura_clusters(scores, etiquetas, centroides_pca, ruta):
 
     ax.axhline(0, color=TEXTO_SUAVE, linewidth=0.8)
     ax.axvline(0, color=TEXTO_SUAVE, linewidth=0.8)
-    ax.set_xlabel("PC1 - tamano de la instalacion")
-    ax.set_ylabel("PC2 - deterioro de la red")
+    ax.set_xlabel(eje_componente(cargas, varianza, "PC1"))
+    ax.set_ylabel(eje_componente(cargas, varianza, "PC2"))
     ax.set_title(
         f"Particion de K-Means con k = {k} proyectada sobre el plano principal",
         loc="left",
@@ -564,6 +711,25 @@ def nombrar_clusters(perfil_z):
 # -----------------------------------------------------------------------------
 def main():
     df = pd.read_csv(DATASET_PATH)
+
+    # --- Seleccion de variables ----------------------------------------------
+    bloques = bloques_de_variables(
+        df, [v for v in VARIABLES_NUMERICAS if v != VARIABLE_EXCLUIDA]
+    )
+    seleccion = tabla_seleccion(df)
+    bloques.to_csv(PROCESSED_DIR / "bloques_de_variables.csv", index=False)
+    seleccion.to_csv(PROCESSED_DIR / "seleccion_variables.csv", index=False)
+
+    print("1. SELECCION DE VARIABLES")
+    print("   Bloques por correlacion: las variables de un mismo bloque miden lo mismo")
+    print(bloques.to_string(index=False))
+    print("\n   Decision por variable")
+    print(seleccion.to_string(index=False))
+    print(
+        f"\n   Modelo final: {len(VARIABLES_MODELO)} de {len(VARIABLES_NUMERICAS)} "
+        f"variables -> {', '.join(VARIABLES_MODELO)}\n"
+    )
+
     X, nombres, escalador = preparar_matriz(df)
     print(f"Matriz estandarizada: {X.shape[0]} clientes x {X.shape[1]} variables\n")
 
@@ -572,7 +738,7 @@ def main():
     varianza.to_csv(PROCESSED_DIR / "pca_varianza.csv", index=False)
     cargas.to_csv(PROCESSED_DIR / "pca_cargas.csv")
 
-    n_ret = int((varianza["criterio_kaiser"] == "Retener").sum())
+    n_ret = int((varianza["criterio_varianza_acumulada"] == "Retener").sum())
     nombres_pca = [f"PC{i}" for i in range(1, n_ret + 1)]
     scores_ret = scores[:, :n_ret]
 
@@ -581,23 +747,23 @@ def main():
     sigma_pc = scores_ret.std(axis=0)
     Z = scores_ret / sigma_pc
 
-    print("1. VARIANZA EXPLICADA")
+    print("2. VARIANZA EXPLICADA")
     print(varianza.to_string(index=False))
     print(
-        f"\nComponentes retenidas (Kaiser): {n_ret} -> "
+        f"\nComponentes retenidas (varianza acumulada > {UMBRAL_VARIANZA:.0f} %): {n_ret} -> "
         f"{varianza.loc[n_ret - 1, 'varianza_acumulada_pct']:.2f} % de la varianza total\n"
     )
-    print("2. CARGAS DE LAS COMPONENTES RETENIDAS")
+    print("3. CARGAS DE LAS COMPONENTES RETENIDAS")
     print(cargas[nombres_pca].to_string(), "\n")
 
     figura_scree(varianza, FIGURAS_DIR / "01_scree_varianza.png")
-    figura_biplot(scores, cargas, df, FIGURAS_DIR / "02_biplot_pca.png")
+    figura_biplot(scores, cargas, df, FIGURAS_DIR / "02_biplot_pca.png", varianza)
 
     # --- Seleccion de k ------------------------------------------------------
     tabla_k = evaluar_k(Z)
     tabla_k.to_csv(PROCESSED_DIR / "seleccion_k.csv", index=False)
     k = int(tabla_k.loc[tabla_k["silueta"].idxmax(), "k"])
-    print("3. SELECCION DEL NUMERO DE GRUPOS")
+    print("4. SELECCION DEL NUMERO DE GRUPOS")
     print(tabla_k.to_string(index=False))
     print(f"\nk elegido por maxima silueta: {k}\n")
 
@@ -626,7 +792,7 @@ def main():
 
     figura_silueta(Z, etiquetas, FIGURAS_DIR / "04_silueta_clusters.png")
     figura_clusters(scores, etiquetas, centroides_pc,
-                    FIGURAS_DIR / "05_clusters_pca.png")
+                    FIGURAS_DIR / "05_clusters_pca.png", cargas, varianza)
 
     # --- Jerarquico y comparacion -------------------------------------------
     enlace, corte = figura_dendrograma(Z, k, FIGURAS_DIR / "06_dendrograma.png")
@@ -638,7 +804,7 @@ def main():
     )
     contingencia.to_csv(PROCESSED_DIR / "kmeans_vs_jerarquico.csv")
 
-    print("4. K-MEANS FRENTE A JERARQUICO DE WARD")
+    print("5. K-MEANS FRENTE A JERARQUICO DE WARD")
     print(contingencia.to_string())
     print(f"Indice Rand ajustado (ARI): {ari:.4f}")
     print(f"Silueta media (K-Means, k={k}): {sil:.4f}\n")
@@ -653,7 +819,7 @@ def main():
     composicion.to_csv(PROCESSED_DIR / "composicion_cluster.csv")
     etiquetas_cluster.to_csv(PROCESSED_DIR / "etiquetas_cluster.csv", index=False)
 
-    print("5. PERFIL DE LOS CLUSTERES (medias en unidades originales)")
+    print("6. PERFIL DE LOS CLUSTERES (medias en unidades originales)")
     print(perfil.to_string())
     print("\n   Perfil en puntuaciones z (respecto a la media global)")
     print(perfil_z.to_string())
@@ -678,6 +844,7 @@ def main():
             {"metrica": "n_variables_modelo", "valor": len(VARIABLES_MODELO)},
             {"metrica": "variable_excluida_por_kmo", "valor": VARIABLE_EXCLUIDA},
             {"metrica": "componentes_retenidas", "valor": n_ret},
+            {"metrica": "variables_del_modelo", "valor": " | ".join(VARIABLES_MODELO)},
             {"metrica": "varianza_acumulada_pct",
              "valor": float(varianza.loc[n_ret - 1, "varianza_acumulada_pct"])},
             {"metrica": "k_optimo", "valor": k},
@@ -691,7 +858,7 @@ def main():
     )
     resumen.to_csv(PROCESSED_DIR / "resumen_modelo.csv", index=False)
 
-    print("OK - Fase 2: 11 tablas en data/processed/ y 6 figuras en")
+    print("OK - Fase 2: 13 tablas en data/processed/ y 6 figuras en")
     print(f"   {FIGURAS_DIR.relative_to(PROJECT_ROOT)}")
 
 

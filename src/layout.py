@@ -157,10 +157,11 @@ sidebar = html.Div(
                         html.Span('El modelo usa '),
                         html.Span(f'{len(VARIABLES_MODELO)} variables',
                                   style={'color': SIDEBAR_TEXT, 'fontWeight': '600'}),
-                        html.Span('. La temperatura queda fuera: su indice KMO '
-                                  'es 0.456, por debajo del umbral de 0.50, '
-                                  'porque describe el clima del municipio y no '
-                                  'al cliente.'),
+                        html.Span(' de las diez del conjunto: consumo, factor '
+                                  'de potencia y antiguedad. Seis se descartaron '
+                                  'por redundancia (correlacion sobre 0.90 entre '
+                                  'ellas) y la temperatura por su indice KMO de '
+                                  '0.456, bajo el umbral de 0.50.'),
                     ],
                     style={'color': SIDEBAR_MUTED, 'fontSize': '10.5px',
                            'lineHeight': '1.5'},
@@ -308,10 +309,12 @@ lienzo = html.Div(
         # --- Cargas y perfiles -----------------------------------------------
         html.Div(
             [
+                # La matriz de cargas tiene solo tres filas: sin bajarle la
+                # altura sus celdas quedan enormes al lado del perfil.
                 card(dcc.Graph(id='fig-cargas', config=GRAPH_CONFIG,
-                               style={'height': '430px'}), flex=40, min_w='320px'),
+                               style={'height': '350px'}), flex=34, min_w='300px'),
                 card(dcc.Graph(id='fig-perfil', config=GRAPH_CONFIG,
-                               style={'height': '430px'}), flex=60, min_w='420px'),
+                               style={'height': '350px'}), flex=66, min_w='440px'),
             ],
             style={'display': 'flex', 'gap': '16px', 'marginBottom': '16px',
                    'flexWrap': 'wrap'},
@@ -319,7 +322,7 @@ lienzo = html.Div(
 
         # --- Coordenadas paralelas -------------------------------------------
         card(dcc.Graph(id='fig-paralelas', config=GRAPH_CONFIG_FULL,
-                       style={'height': '470px'})),
+                       style={'height': '410px'})),
         html.Div(style={'marginBottom': '16px'}),
 
         # --- Composicion y correlaciones -------------------------------------

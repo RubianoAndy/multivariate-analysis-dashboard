@@ -13,9 +13,10 @@ estatica no puede dar:
 * **Biplot interactivo** - el mismo plano PC1-PC2 de la Fase 2, pero con el
   identificador y los valores originales de cada cliente en el tooltip: permite
   pasar del punto atipico al cliente que lo produce.
-* **Dispersion 3D** - las tres primeras componentes a la vez. En papel una
-  proyeccion 3D es un enredo; rotandola se comprueba si los grupos siguen
-  separados fuera del plano principal.
+* **Dispersion 3D** - como el modelo usa exactamente tres variables, estos tres
+  ejes son el espacio completo del analisis, sin proyeccion ni perdida: lo que
+  se ve al rotar es el dato entero, y permite comprobar que la particion no es
+  un artefacto de mirar solo dos dimensiones.
 * **Coordenadas paralelas** - las nueve variables en un solo eje comun, con
   filtros de rango arrastrables sobre cada eje. Es la forma habitual de
   explorar perfiles multivariantes.
@@ -38,7 +39,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 from pca_clustering import (
-    VARIABLES_LOG, VARIABLES_MODELO, preparar_matriz, ejecutar_pca,
+    VARIABLES_LOG, VARIABLES_MODELO, preparar_matriz, ejecutar_pca, eje_componente,
 )
 from estilo import (
     PLANTILLA_PLOTLY, titulo_plotly, AZUL_UNISALLE, BORDE,
@@ -189,10 +190,8 @@ def biplot_interactivo(df, cargas, varianza, nombres_cluster, ruta):
             "Pase el cursor sobre un punto para ver el cliente; "
             "haga clic en la leyenda para aislar un grupo",
         ),
-        xaxis_title=f"PC1 - tamano de la instalacion "
-                    f"({varianza.loc[0, 'varianza_explicada_pct']:.1f} %)",
-        yaxis_title=f"PC2 - deterioro de la red "
-                    f"({varianza.loc[1, 'varianza_explicada_pct']:.1f} %)",
+        xaxis_title=eje_componente(cargas, varianza, "PC1"),
+        yaxis_title=eje_componente(cargas, varianza, "PC2"),
         legend=dict(title="", orientation="v", x=1.01, y=1, font=dict(size=11)),
         height=720,
     )
@@ -205,11 +204,13 @@ def biplot_interactivo(df, cargas, varianza, nombres_cluster, ruta):
 # 2. DISPERSION 3D
 # -----------------------------------------------------------------------------
 def dispersion_3d(df, nombres_cluster, ruta):
-    """Consumo, factor de potencia y antiguedad en tres ejes, por cluster.
+    """Las tres variables del modelo en tres ejes, por cluster.
 
-    Se usan variables originales -no componentes- porque en 3D el lector quiere
-    reconocer unidades: kWh, adimensional y anios. El consumo va en escala
-    logaritmica, igual que en el modelo.
+    Al haber reducido el modelo a tres variables, esta figura no es una
+    proyeccion: es el espacio completo sobre el que se calcularon el PCA y los
+    grupos. Se usan las variables originales -no las componentes- porque en 3D
+    el lector quiere reconocer unidades: kWh, adimensional y anios. El consumo
+    va en escala logaritmica, igual que en el modelo.
     """
     datos = df.copy()
     datos["Cluster"] = datos["cluster"].map(nombres_cluster)
@@ -222,20 +223,20 @@ def dispersion_3d(df, nombres_cluster, ruta):
         color_discrete_map={
             nombres_cluster[c]: color_cluster(c) for c in sorted(df["cluster"].unique())
         },
-        size="potencia_instalada_kw",
-        size_max=22,
         opacity=0.82,
         custom_data=["id_cliente", "sector", "region", "consumo_kwh",
                      "potencia_instalada_kw", "interrupciones_mes"],
     )
     fig.update_traces(
+        marker=dict(size=5.5, line=dict(width=0.4, color="white")),
         hovertemplate=(
             "<b>%{customdata[0]}</b><br>"
             "%{customdata[1]} | %{customdata[2]}<br>"
             "<br>Consumo: %{customdata[3]:,.0f} kWh/mes"
-            "<br>Potencia instalada: %{customdata[4]:.1f} kW"
             "<br>Factor de potencia: %{y:.3f}"
             "<br>Antiguedad: %{z:.1f} anios"
+            "<br><i>Fuera del modelo:</i>"
+            "<br>Potencia instalada: %{customdata[4]:.1f} kW"
             "<br>Interrupciones: %{customdata[5]} al mes"
             "<extra></extra>"
         )
@@ -244,8 +245,8 @@ def dispersion_3d(df, nombres_cluster, ruta):
     fig.update_layout(
         **PLANTILLA_PLOTLY,
         title=titulo_plotly(
-            "Los cuatro segmentos en el espacio de las variables originales",
-            "Arrastre para rotar; el tamano del punto es la potencia instalada",
+            "Los cuatro segmentos en el espacio completo del modelo",
+            "Las tres variables del analisis, sin proyectar. Arrastre para rotar",
         ),
         scene=dict(
             xaxis=dict(title="log10 del consumo (kWh/mes)", backgroundcolor="white",
@@ -274,7 +275,7 @@ def coordenadas_paralelas(df, nombres_cluster, ruta):
     exploracion y no en una ilustracion.
     """
     datos = df[VARIABLES_MODELO].copy()
-    for col in VARIABLES_LOG:
+    for col in [c for c in VARIABLES_LOG if c in VARIABLES_MODELO]:
         datos[col] = np.log(datos[col])
     datos = (datos - datos.mean()) / datos.std()
     # Los valores se recortan a +-3 sigma solo para dibujar: un unico cliente con

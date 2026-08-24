@@ -6,8 +6,9 @@
 # en Python y rehace el analisis con las herramientas propias de R, para
 # comprobar que los resultados no dependen del lenguaje ni de la libreria.
 #
-#   1. Prepara la matriz igual que en Python (log en las seis variables de
-#      escala, temperatura excluida por su KMO, estandarizacion).
+#   1. Prepara la matriz igual que en Python: las mismas TRES variables del
+#      modelo (consumo en logaritmo, factor de potencia y antiguedad), elegidas
+#      en la Fase 2 por redundancia y por el indice KMO.
 #   2. PCA con stats::prcomp y comparacion de autovalores contra los de
 #      scikit-learn, leidos de data/processed/pca_varianza.csv.
 #   3. K-Means y jerarquico de Ward con las funciones base, seleccion de k por
@@ -104,6 +105,21 @@ tema_unisalle <- theme_minimal(base_size = 11) +
   )
 theme_set(tema_unisalle)
 
+# Concepto que mide cada variable, para rotular las componentes por su carga
+# dominante en vez de escribir el nombre a mano (el orden puede cambiar).
+tema_variable <- c(
+  consumo_kwh = "escala de consumo",
+  factor_potencia = "calidad de la red",
+  antiguedad_anios = "calidad de la red"
+)
+
+eje_componente <- function(cargas, var_pct, j) {
+  dominante <- names(which.max(abs(cargas[, j])))
+  # Las filas de las cargas llevan la etiqueta corta, no el nombre de columna.
+  variable <- names(etiquetas_cortas)[match(dominante, etiquetas_cortas)]
+  sprintf("PC%d - %s (%.1f %%)", j, tema_variable[[variable]], var_pct[j])
+}
+
 guardar <- function(grafico, nombre, ancho = 9, alto = 5.6) {
   ggsave(file.path(figures_dir, nombre), grafico,
          width = ancho, height = alto, dpi = 150, bg = "white")
@@ -115,18 +131,17 @@ guardar <- function(grafico, nombre, ancho = 9, alto = 5.6) {
 datos <- read.csv(dataset_path, stringsAsFactors = FALSE)
 cat(sprintf("Dataset: %d clientes x %d columnas\n\n", nrow(datos), ncol(datos)))
 
-variables_log <- c("consumo_kwh", "costo_miles_cop", "area_m2",
-                   "potencia_instalada_kw", "num_equipos", "horas_operacion")
-# temperatura_c queda fuera: KMO = 0.456, por debajo del umbral de Kaiser.
-variables_modelo <- c(variables_log, "factor_potencia", "antiguedad_anios",
-                      "interrupciones_mes")
+# Solo el consumo necesita logaritmo; las otras dos ya son de escala acotada.
+variables_log <- c("consumo_kwh")
+
+# Las tres variables del modelo. Las siete restantes se descartaron en la Fase 2:
+# seis por redundancia (correlacion > 0.90 entre ellas) y la temperatura por su
+# indice KMO de 0.456. Ver data/processed/seleccion_variables.csv.
+variables_modelo <- c("consumo_kwh", "factor_potencia", "antiguedad_anios")
 
 etiquetas_cortas <- c(
-  consumo_kwh = "log Consumo", costo_miles_cop = "log Costo",
-  area_m2 = "log Area", potencia_instalada_kw = "log Potencia",
-  num_equipos = "log Equipos", horas_operacion = "log Horas oper.",
-  factor_potencia = "F. potencia", antiguedad_anios = "Antiguedad",
-  interrupciones_mes = "Interrupciones"
+  consumo_kwh = "log Consumo", factor_potencia = "F. potencia",
+  antiguedad_anios = "Antiguedad"
 )
 
 matriz <- datos[, variables_modelo]
@@ -159,7 +174,14 @@ for (j in seq_len(ncol(pca$rotation))) {
 autovalores <- pca$sdev^2
 var_pct     <- 100 * autovalores / sum(autovalores)
 var_acum    <- cumsum(var_pct)
-n_retenidas <- sum(autovalores > 1)
+# Con tres variables el autovalor medio vale 1 por construccion, de modo que el
+# criterio de Kaiser ("autovalor > 1") equivale a "por encima del promedio" y
+# descartaria la segunda componente pese a recoger un tercio de la informacion.
+# Se retiene por varianza acumulada, igual que en Python, y se reporta Kaiser al
+# lado para dejar la discrepancia a la vista.
+umbral_varianza <- 80
+n_retenidas <- max(2, min(which(var_acum >= umbral_varianza)))
+n_por_kaiser <- sum(autovalores > 1)
 
 varianza_r <- data.frame(
   componente             = paste0("PC", seq_along(autovalores)),
@@ -167,14 +189,17 @@ varianza_r <- data.frame(
   varianza_explicada_pct = round(var_pct, 2),
   varianza_acumulada_pct = round(var_acum, 2),
   criterio_kaiser        = ifelse(autovalores > 1, "Retener", "Descartar"),
+  criterio_varianza_acum = ifelse(seq_along(autovalores) <= n_retenidas,
+                                  "Retener", "Descartar"),
   stringsAsFactors       = FALSE
 )
 write.csv(varianza_r, file.path(processed_dir, "pca_varianza_r.csv"), row.names = FALSE)
 
 cat("1. VARIANZA EXPLICADA (R)\n")
 print(varianza_r, row.names = FALSE)
-cat(sprintf("\nComponentes retenidas (Kaiser): %d -> %.2f %% de la varianza\n\n",
-            n_retenidas, var_acum[n_retenidas]))
+cat(sprintf("\nComponentes retenidas (varianza acumulada > %d %%): %d -> %.2f %%\n",
+            umbral_varianza, n_retenidas, var_acum[n_retenidas]))
+cat(sprintf("El criterio de Kaiser habria retenido %d\n\n", n_por_kaiser))
 
 # Comparacion contra los autovalores de scikit-learn.
 ruta_py <- file.path(processed_dir, "pca_varianza.csv")
@@ -301,8 +326,8 @@ g_biplot <- ggplot(puntuaciones, aes(PC1, PC2)) +
     title = "Biplot: clientes y variables en el plano principal - R",
     subtitle = sprintf("PC1 (%.1f %%) frente a PC2 (%.1f %%); las flechas son las cargas de cada variable",
                        var_pct[1], var_pct[2]),
-    x = sprintf("PC1 - tamano de la instalacion (%.1f %%)", var_pct[1]),
-    y = sprintf("PC2 - deterioro de la red (%.1f %%)", var_pct[2])
+    x = eje_componente(cargas, var_pct, 1),
+    y = eje_componente(cargas, var_pct, 2)
   )
 guardar(g_biplot, "02_biplot_pca.png", ancho = 9.5, alto = 6.4)
 
@@ -460,15 +485,21 @@ g_clusters <- ggplot(plano, aes(PC1, PC2)) +
   labs(
     title = sprintf("Particion de K-Means con k = %d sobre el plano principal - R", k_optimo),
     subtitle = sprintf("Silueta media %.3f; las aspas marcan los centroides", silueta_media),
-    x = sprintf("PC1 - tamano de la instalacion (%.1f %%)", var_pct[1]),
-    y = sprintf("PC2 - deterioro de la red (%.1f %%)", var_pct[2])
+    x = eje_componente(cargas, var_pct, 1),
+    y = eje_componente(cargas, var_pct, 2)
   )
 guardar(g_clusters, "04_clusters_pca.png", ancho = 9, alto = 6)
 
 # --- Figura 5: perfil de los clusteres ---------------------------------------
-# Medias por cluster en puntuaciones z, incluyendo la temperatura para mostrar
-# que se mantiene plana pese a no haber participado en el modelo.
-variables_perfil <- c(variables_modelo, "temperatura_c")
+# Medias por cluster en puntuaciones z sobre TODAS las variables numericas, no
+# solo las tres del modelo. Es la comprobacion de que la particion generaliza:
+# los grupos se separan tambien en las siete variables que se descartaron, y la
+# temperatura -la unica sin relacion con el resto- se mantiene plana.
+variables_perfil <- c(
+  "consumo_kwh", "costo_miles_cop", "area_m2", "potencia_instalada_kw",
+  "num_equipos", "horas_operacion", "temperatura_c", "factor_potencia",
+  "antiguedad_anios", "interrupciones_mes"
+)
 perfil <- do.call(rbind, lapply(niveles_cluster, function(c) {
   sub <- datos[km$cluster == c, variables_perfil]
   medias <- (colMeans(sub) - colMeans(datos[, variables_perfil])) /
@@ -477,7 +508,14 @@ perfil <- do.call(rbind, lapply(niveles_cluster, function(c) {
              stringsAsFactors = FALSE)
 }))
 
-nombres_variables <- c(etiquetas_cortas, temperatura_c = "Temperatura")
+# Nombres legibles de las diez, marcando con * las tres que entran al modelo.
+nombres_variables <- c(
+  consumo_kwh = "Consumo *", costo_miles_cop = "Costo", area_m2 = "Area",
+  potencia_instalada_kw = "Potencia", num_equipos = "Equipos",
+  horas_operacion = "Horas oper.", temperatura_c = "Temperatura",
+  factor_potencia = "F. potencia *", antiguedad_anios = "Antiguedad *",
+  interrupciones_mes = "Interrupciones"
+)
 perfil$variable <- factor(nombres_variables[perfil$variable],
                           levels = nombres_variables[variables_perfil])
 # Los grupos van numerados desde 0 tras alinearlos con Python, asi que no se
@@ -496,7 +534,8 @@ g_perfil <- ggplot(perfil, aes(variable, cluster_etiqueta, fill = z)) +
                        name = "z") +
   labs(
     title = "Perfil de cada cluster en puntuaciones z - R",
-    subtitle = "La temperatura no participo en el modelo y se mantiene plana: la particion no reproduce la geografia",
+    subtitle = paste("Las marcadas con * son las tres del modelo; el resto no participo y aun asi separa a los grupos.",
+                     "La temperatura se mantiene plana: la particion no reproduce la geografia"),
     x = NULL, y = NULL
   ) +
   theme(axis.text.x = element_text(angle = 28, hjust = 1),
@@ -528,9 +567,9 @@ g_interactivo <- plot_ly(
         "Pase el cursor sobre un punto para identificar al cliente</span>"),
       x = 0.01, xanchor = "left", font = list(size = 16, color = AZUL_UNISALLE)
     ),
-    xaxis = list(title = sprintf("PC1 - tamano de la instalacion (%.1f %%)", var_pct[1]),
+    xaxis = list(title = eje_componente(cargas, var_pct, 1),
                  gridcolor = BORDE, zerolinecolor = BORDE),
-    yaxis = list(title = sprintf("PC2 - deterioro de la red (%.1f %%)", var_pct[2]),
+    yaxis = list(title = eje_componente(cargas, var_pct, 2),
                  gridcolor = BORDE, zerolinecolor = BORDE),
     paper_bgcolor = "white", plot_bgcolor = "white",
     legend = list(title = list(text = "Cluster")),

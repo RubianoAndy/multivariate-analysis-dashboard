@@ -37,12 +37,14 @@ PUBLIC_DIR = BASE_DIR / 'public'
 DATA_DIR = BASE_DIR / 'data'
 CODIGOS_DIR = BASE_DIR / 'utils' / 'codes' / 'python'
 
-# El pipeline de analisis es la fuente de verdad; el dashboard lo consume.
+# El pipeline de analisis es la fuente de verdad; el dashboard lo consume. Los
+# nombres que este modulo no usa directamente se reexportan a proposito, para que
+# layout.py y callbacks.py los importen de aqui y no vuelvan a tocar sys.path.
 sys.path.insert(0, str(CODIGOS_DIR))
 from dataset import VARIABLES_NUMERICAS                      # noqa: E402
-from pca_clustering import (                                 # noqa: E402
-    VARIABLES_LOG, VARIABLES_MODELO,
-    preparar_matriz, ejecutar_pca, describir, SEED,
+from pca_clustering import (                                 # noqa: E402,F401
+    VARIABLES_LOG, VARIABLES_MODELO, VARIABLE_EXCLUIDA,
+    preparar_matriz, ejecutar_pca, describir, eje_componente, SEED,
 )
 from estilo import ETIQUETAS_CORTAS                          # noqa: E402
 
@@ -164,9 +166,10 @@ def analizar(sectores, regiones, k):
     X, nombres, escalador = preparar_matriz(datos)
     pca, scores, varianza, cargas = ejecutar_pca(X, nombres)
 
-    # Igual que en la Fase 2: las componentes retenidas se estandarizan antes de
-    # agrupar, para que la distancia no quede dominada por la primera.
-    n_ret = max(int((varianza['criterio_kaiser'] == 'Retener').sum()), 2)
+    # Mismo criterio que la Fase 2: varianza acumulada, no Kaiser. Con tres
+    # variables el autovalor medio vale 1 y Kaiser descartaria una componente
+    # que recoge un tercio de la informacion.
+    n_ret = max(int((varianza['criterio_varianza_acumulada'] == 'Retener').sum()), 2)
     n_ret = min(n_ret, scores.shape[1])
     Z = scores[:, :n_ret] / scores[:, :n_ret].std(axis=0)
 

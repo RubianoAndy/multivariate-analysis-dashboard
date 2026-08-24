@@ -1,0 +1,11 @@
+variable,decision,motivo,bloque,representante_del_bloque,en_el_modelo
+consumo_kwh,Se conserva,Representante del bloque de tamano y variable de negocio,1.0,consumo_kwh,True
+costo_miles_cop,Se descarta,Redundante: correlacion > 0.90 con el consumo,1.0,consumo_kwh,False
+area_m2,Se descarta,Redundante: correlacion > 0.90 con el consumo,1.0,consumo_kwh,False
+potencia_instalada_kw,Se descarta,Redundante: correlacion > 0.90 con el consumo,1.0,consumo_kwh,False
+num_equipos,Se descarta,Redundante: correlacion > 0.90 con el consumo,1.0,consumo_kwh,False
+horas_operacion,Se descarta,Redundante: correlacion > 0.90 con el consumo,1.0,consumo_kwh,False
+temperatura_c,Se descarta,"KMO = 0.456, por debajo del umbral 0.50 de Kaiser",,,False
+factor_potencia,Se conserva,Mide la calidad electrica de la instalacion,2.0,factor_potencia,True
+antiguedad_anios,Se conserva,Mide la edad de la instalacion,2.0,factor_potencia,True
+interrupciones_mes,Se descarta,Conteo de Poisson ruidoso; su senal ya esta en las otras dos,3.0,interrupciones_mes,False
