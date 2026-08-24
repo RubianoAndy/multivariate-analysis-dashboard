@@ -21,7 +21,7 @@ from src.theme import (
 )
 from src.data import (
     analizar, MINIMO_CLIENTES, ETIQUETAS_CORTAS, VARIABLES_LOG,
-    VARIABLES_NUMERICAS, VARIABLES_MODELO, eje_componente,
+    VARIABLES_NUMERICAS, eje_componente,
 )
 
 GRID = '#F1F3F8'

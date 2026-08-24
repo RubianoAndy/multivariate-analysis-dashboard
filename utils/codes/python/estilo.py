@@ -52,29 +52,15 @@ ESCALA_SECUENCIAL = "Blues"
 # Nombres legibles para ejes y leyendas.
 ETIQUETAS = {
     "consumo_kwh": "Consumo (kWh/mes)",
-    "costo_miles_cop": "Costo (miles COP)",
-    "area_m2": "Area (m2)",
-    "potencia_instalada_kw": "Potencia instalada (kW)",
-    "num_equipos": "Numero de equipos",
-    "horas_operacion": "Horas de operacion (h/mes)",
-    "temperatura_c": "Temperatura (C)",
     "factor_potencia": "Factor de potencia",
     "antiguedad_anios": "Antiguedad (anios)",
-    "interrupciones_mes": "Interrupciones (por mes)",
 }
 
 # Version corta para ejes apretados (heatmaps, coordenadas paralelas).
 ETIQUETAS_CORTAS = {
     "consumo_kwh": "Consumo",
-    "costo_miles_cop": "Costo",
-    "area_m2": "Area",
-    "potencia_instalada_kw": "Potencia",
-    "num_equipos": "Equipos",
-    "horas_operacion": "Horas oper.",
-    "temperatura_c": "Temperatura",
     "factor_potencia": "F. potencia",
     "antiguedad_anios": "Antiguedad",
-    "interrupciones_mes": "Interrupciones",
 }
 
 # Concepto que mide cada variable. Sirve para poner nombre a las componentes
@@ -83,15 +69,8 @@ ETIQUETAS_CORTAS = {
 # acabaria mintiendo.
 TEMA_VARIABLE = {
     "consumo_kwh": "escala de consumo",
-    "costo_miles_cop": "escala de consumo",
-    "area_m2": "tamano de la instalacion",
-    "potencia_instalada_kw": "tamano de la instalacion",
-    "num_equipos": "tamano de la instalacion",
-    "horas_operacion": "intensidad de uso",
-    "temperatura_c": "clima del municipio",
     "factor_potencia": "calidad de la red",
     "antiguedad_anios": "calidad de la red",
-    "interrupciones_mes": "calidad de la red",
 }
 
 
