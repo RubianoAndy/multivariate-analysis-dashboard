@@ -67,7 +67,7 @@ Las tres variables son `consumo_kwh`, `factor_potencia` y `antiguedad_anios`: cu
 ├── public/
 │   └── assets/
 │       └── images/
-│           ├── Logo.png · UnisalleDarkLogoV1.png · UnisalleLogo.png
+│           ├── Logo.png · UnisalleDarkLogoV1.png   # versión clara y versión blanca
 │           ├── author/                # Foto del autor
 │           ├── screenshots/           # Capturas del dashboard
 │           └── figures/
@@ -298,13 +298,15 @@ Tres lecturas que sostiene la evidencia:
     <img src="public/assets/images/figures/python/advanced/03_clustermap.png" width="760" alt="Clustermap">
 </div>
 
-**Clustermap** — clientes y variables reordenados por similitud. Los bloques aparecen sin imponerlos: la franja de color de la izquierda es la asignación de K-Means y coincide con la que el dendrograma forma por su cuenta.
+**Clustermap** — las nueve variables candidatas en columnas y los 300 clientes en filas, ambos reordenados por similitud. El dendrograma superior agrupa las variables sin ayuda y reproduce los bloques que decidieron la selección; las marcadas con `*` son las tres del modelo.
+
+Las filas se ordenan por el espacio del modelo, no por las nueve variables, y esa distinción importa: agrupando los clientes con las nueve, el dendrograma lateral y la franja de color responden a criterios distintos y concuerdan solo a medias (ARI 0,49), de modo que la franja sale entreverada y la figura aparenta un desacuerdo que no existe. Ordenando por el mismo espacio en el que se agrupó (ARI 0,85) los bloques quedan limpios y se ve lo que interesa: **los grupos hallados con tres variables también organizan las seis que el modelo nunca vio**.
 
 <div align="center">
     <img src="public/assets/images/figures/python/advanced/04_perfil_clusters.png" width="900" alt="Perfil de clústeres en z">
 </div>
 
-**Perfil en puntuaciones z** — la tabla de interpretación convertida en figura, sobre las diez variables. Los grupos se separan también en las siete que no entraron al modelo, y la columna de temperatura permanece plana: la partición no reproduce la geografía.
+**Perfil en puntuaciones z** — la tabla de interpretación convertida en figura, sobre las diez variables y con `*` en las tres del modelo. Los grupos se separan también en las siete que no entraron al ajuste, y la columna de temperatura permanece plana: la partición no reproduce la geografía.
 
 | | |
 |---|---|

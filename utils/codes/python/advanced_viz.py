@@ -25,6 +25,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+from scipy.cluster.hierarchy import linkage
 
 from dataset import VARIABLES_NUMERICAS
 from pca_clustering import VARIABLES_LOG, VARIABLES_MODELO, VARIABLE_EXCLUIDA
@@ -88,6 +89,12 @@ def titulo(fig, texto, subtitulo=None):
 def heatmap_correlacion(df, ruta):
     """Matriz de correlacion anotada, con mascara triangular.
 
+    Se dibuja sobre las diez variables del conjunto porque es la primera
+    evidencia de la seleccion: el bloque de seis con correlaciones sobre 0.90 es
+    lo que justifica quedarse con una sola representante. Las que entran al
+    modelo van marcadas con un asterisco, igual que en el clustermap y en el
+    dashboard.
+
     Se calcula sobre las mismas variables transformadas que alimentan el PCA:
     una correlacion de Pearson sobre variables lognormales mide la relacion
     equivocada, porque Pearson supone linealidad y aqui la relacion es lineal
@@ -97,7 +104,8 @@ def heatmap_correlacion(df, ruta):
     for col in VARIABLES_LOG:
         datos[col] = np.log(datos[col])
     datos.columns = [
-        f"log {ETIQUETAS_CORTAS[c]}" if c in VARIABLES_LOG else ETIQUETAS_CORTAS[c]
+        (f"log {ETIQUETAS_CORTAS[c]}" if c in VARIABLES_LOG else ETIQUETAS_CORTAS[c])
+        + ("  *" if c in VARIABLES_MODELO else "")
         for c in datos.columns
     ]
 
@@ -118,8 +126,9 @@ def heatmap_correlacion(df, ruta):
     top = titulo(
         fig,
         "Matriz de correlacion entre las variables del cliente",
-        "Dos bloques compactos: las seis variables de tamano y las tres de estado de la red. "
-        "La temperatura no se asocia con ninguna.",
+        "Dos bloques compactos -las seis de tamano y las tres de estado de la red- y una "
+        "variable suelta, la temperatura, que no se asocia con ninguna. De ahi salen las tres "
+        "del modelo, marcadas con *.",
     )
     fig.tight_layout(rect=[0, 0, 1, top])
     fig.savefig(ruta)
@@ -180,21 +189,34 @@ def matriz_dispersion(df, ruta):
 def clustermap(df, ruta):
     """Mapa de calor de los datos estandarizados con dendrogramas en los margenes.
 
-    Se dibuja sobre las **nueve variables candidatas**, no sobre las tres que
-    acabaron en el modelo: esta figura es justamente la evidencia de por que
-    sobraban seis. El dendrograma superior las agrupa solo, sin que nadie le
-    diga cuales miden lo mismo, y reproduce los bloques que la Fase 2 uso para
-    seleccionar. Dibujarla con las tres finales seria enseñar la conclusion y
-    esconder el argumento.
+    Las **columnas** son las nueve variables candidatas, no las tres que
+    acabaron en el modelo: esta figura es la evidencia de por que sobraban seis.
+    El dendrograma superior las agrupa solo, sin que nadie le diga cuales miden
+    lo mismo, y reproduce los bloques que la Fase 2 uso para seleccionar.
+    Dibujarla ya reducida seria enseñar la conclusion y esconder el argumento.
 
-    Las bandas horizontales son los grupos de clientes; la franja de color de la
-    izquierda, la asignacion de K-Means.
+    Las **filas**, en cambio, se ordenan por el espacio del modelo -las tres
+    variables seleccionadas-, no por las nueve. Es una decision deliberada: si
+    se agrupan los clientes con las nueve, el dendrograma de filas y la franja
+    de color de la izquierda responden a dos criterios distintos y concuerdan
+    solo a medias (indice Rand ajustado 0.49), de modo que la franja aparece
+    entreverada y la figura sugiere un desacuerdo que no existe. Ordenando las
+    filas por el mismo espacio en el que se agrupo (ARI 0.85) la franja forma
+    bloques limpios y la figura dice lo que tiene que decir: los grupos hallados
+    con tres variables tambien organizan las seis que el modelo nunca vio.
     """
     candidatas = [v for v in VARIABLES_NUMERICAS if v != VARIABLE_EXCLUIDA]
     datos = df[candidatas].copy()
     for col in [c for c in VARIABLES_LOG if c in candidatas]:
         datos[col] = np.log(datos[col])
     datos = (datos - datos.mean()) / datos.std()
+
+    # Enlace de filas calculado aparte, sobre las tres variables del modelo.
+    modelo = df[VARIABLES_MODELO].copy()
+    for col in [c for c in VARIABLES_LOG if c in VARIABLES_MODELO]:
+        modelo[col] = np.log(modelo[col])
+    modelo = (modelo - modelo.mean()) / modelo.std()
+    enlace_filas = linkage(modelo.values, method="ward")
 
     matriz = pd.DataFrame(
         datos.values,
@@ -212,6 +234,7 @@ def clustermap(df, ruta):
     g = sns.clustermap(
         matriz,
         method="ward",
+        row_linkage=enlace_filas,
         cmap=ESCALA_DIVERGENTE,
         center=0,
         vmin=-2.5,
@@ -233,9 +256,10 @@ def clustermap(df, ruta):
     top = titulo(
         g.figure,
         "Clustermap: clientes y variables reordenados por similitud",
-        "El dendrograma superior agrupa las variables sin ayuda y reproduce los bloques "
-        "que motivaron la seleccion. Las marcadas con * son las tres que entran al modelo; "
-        "la franja de color de la izquierda es el cluster asignado por K-Means.",
+        "Columnas: el dendrograma superior agrupa las variables sin ayuda y reproduce los "
+        "bloques que motivaron la seleccion (las marcadas con * entran al modelo). Filas: "
+        "los clientes se ordenan por las tres variables del modelo, y los bloques que forman "
+        "-la franja de color es K-Means- se mantienen en las seis que el modelo nunca vio.",
     )
     # clustermap monta sus ejes sobre un gridspec propio, que ignora tight_layout;
     # hay que reducirle el techo a mano para dejar sitio al titulo. La barra de
@@ -261,7 +285,10 @@ def perfil_clusters(df, ruta):
     media = df[VARIABLES_NUMERICAS].mean()
     desv = df[VARIABLES_NUMERICAS].std()
     perfil = (df.groupby("cluster")[VARIABLES_NUMERICAS].mean() - media) / desv
-    perfil.columns = [ETIQUETAS_CORTAS[c] for c in perfil.columns]
+    perfil.columns = [
+        ETIQUETAS_CORTAS[c] + ("  *" if c in VARIABLES_MODELO else "")
+        for c in perfil.columns
+    ]
     tamanos = df["cluster"].value_counts().sort_index()
     perfil.index = [f"C{c}\n(n={tamanos[c]})" for c in perfil.index]
 
@@ -281,8 +308,9 @@ def perfil_clusters(df, ruta):
     top = titulo(
         fig,
         "Perfil de cada cluster en puntuaciones z",
-        "La temperatura permanece plana en los cuatro grupos: la particion no reproduce "
-        "la geografia, sino el tamano y el estado de la red.",
+        "Las marcadas con * son las tres del modelo; el resto no participo en el ajuste y aun "
+        "asi separa a los grupos, lo que muestra que la particion generaliza. La temperatura "
+        "permanece plana: no reproduce la geografia.",
     )
     fig.tight_layout(rect=[0, 0, 1, top])
     fig.savefig(ruta)
